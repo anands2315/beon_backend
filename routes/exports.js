@@ -3,6 +3,7 @@ const ExportData = require('../models/exports');
 const TopSchema = require('../models/topExporters');
 const exportRouter = express.Router();
 
+
 exportRouter.post("/api/exports", async (req, res) => {
 
     console.log(req.body);
@@ -286,6 +287,63 @@ exportRouter.get("/api/exports/by-iec", async (req, res) => {
         const exportData = await query;
 
         res.json(exportData);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+exportRouter.get("/api/exports/by-ritcCode-chart", async (req, res) => {
+    try {
+        const ritcCode = Number(req.query.ritcCode);
+
+        // If ritcCode is not a number, return an error
+        if (isNaN(ritcCode)) {
+            return res.status(400).json({ error: "Invalid ritcCode parameter" });
+        }
+
+        // Find export data with the specified ritcCode
+        const exportData = await ExportData.find({ ritcCode: ritcCode });
+
+        // Transform and aggregate the data
+        let ritcCodeData = [];
+        let ritcCodeCounts = {};
+
+        exportData.forEach(exportDataItem => {
+            let data = {
+                'Company Name': exportDataItem.exporterName,
+                'SB.No.': exportDataItem.sbNo,
+                'SB.Date': exportDataItem.sbDate,
+                'Iec': exportDataItem.iec,
+                'Country': exportDataItem.countryOfDestination,
+                'POD': exportDataItem.portOfDischarge,
+                'UQC': exportDataItem.uqc,
+                'RITC Code': exportDataItem.ritcCode,
+                'Currency': exportDataItem.currency,
+                'Quantity': exportDataItem.quantity,
+                'Item Desc': exportDataItem.itemDesc,
+                'Item Rate': exportDataItem.itemRate,
+                'Item No': exportDataItem.itemNo,
+                'Invoice Ser.No': exportDataItem.invoiceSerNo,
+                'Invoice No': exportDataItem.invoiceNo,
+                'Challan No': exportDataItem.challanNo,
+                'FOB': exportDataItem.fob,
+                '_id': exportDataItem._id,
+            };
+            ritcCodeData.push(data);
+
+            let year = data['SB.Date'].toString().split('-')[2];
+            let month = data['SB.Date'].toString().split('-')[1];
+            let yearMonth = `${year}-${month}`;
+
+            if (ritcCodeCounts[yearMonth]) {
+                ritcCodeCounts[yearMonth] += 1;
+            } else {
+                ritcCodeCounts[yearMonth] = 1;
+            }
+        });
+
+        // Send the transformed and aggregated data as the response
+        res.json({ ritcCodeData, ritcCodeCounts });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
