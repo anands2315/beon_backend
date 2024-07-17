@@ -93,7 +93,7 @@ exportRouter.get("/api/exports/sorted", async (req, res) => {
 
 exportRouter.get("/api/exports", async (req, res) => {
     try {
-        const limit = parseInt(req.query.limit, 10) || null; // Get the limit from query params
+        const limit = parseInt(req.query.limit, 10) || null; 
         let exportData;
 
         if (limit) {
@@ -484,6 +484,5 @@ exportRouter.delete("/api/exports/:id", async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 });
-
 
 module.exports = exportRouter;
