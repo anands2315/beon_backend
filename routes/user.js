@@ -5,23 +5,29 @@ const userRouter = express.Router();
 
 userRouter.post('/api/signUp', async (req, res) => {
     try {
-        const { name, email, password, phoneNo, package } = req.body;
+        const { name, email, password, phoneNo, package, userType = 'main' } = req.body;
 
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            return res.status(400).json({ msg: "User with same email already exists!" });
+            return res.status(400).json({ msg: "User with the same email already exists!" });
         }
 
         const hashedpassword = await bcryptjs.hash(password, 8);
+
+        const packageNumber = parseInt(package, 10);
+
+        // Set verified to true if package is 4 or user type is admin
+        const verified = (packageNumber === 4 || userType === 'admin');
 
         let user = new User({
             email,
             password: hashedpassword,
             name,
             phoneNo,
-            package,
+            package: packageNumber,
             date: new Date().getTime(),
-            userType: 'main'
+            userType,
+            verified // add the verified field here
         });
         user = await user.save();
         res.json(user);
@@ -29,7 +35,11 @@ userRouter.post('/api/signUp', async (req, res) => {
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
-})
+});
+
+
+
+
 
 userRouter.post('/api/signin', async (req, res) => {
     try {
