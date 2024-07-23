@@ -10,29 +10,38 @@ userRouter.post('/api/signUp', async (req, res) => {
     try {
         const { name, email, password, phoneNo, package, userType = 'main' } = req.body;
 
+        const otpRecord = await Otp.findOne({ email });
+
+        if (!otpRecord || !otpRecord.otpVerified) {
+            return res.status(400).json({ msg: "Email not verified. Please verify your email before signing up." });
+        }
+
         const existingUser = await User.findOne({ email });
         if (existingUser) {
             return res.status(400).json({ msg: "User with the same email already exists!" });
         }
 
-        const hashedpassword = await bcryptjs.hash(password, 8);
+        const hashedPassword = await bcryptjs.hash(password, 8);
 
         const packageNumber = parseInt(package, 10);
 
-        // Set verified to true if package is 4 or user type is admin
         const verified = (packageNumber === 4 || userType === 'admin');
 
         let user = new User({
             email,
-            password: hashedpassword,
+            password: hashedPassword,
             name,
             phoneNo,
             package: packageNumber,
             date: new Date().getTime(),
             userType,
-            verified // add the verified field here
+            verified
         });
+
         user = await user.save();
+
+        await Otp.deleteOne({ email });
+
         res.json(user);
 
     } catch (e) {
@@ -51,7 +60,7 @@ userRouter.post('/api/sendOtp', async (req, res) => {
 
         const existingOtp = await Otp.findOne({ email });
         if (existingOtp) {
-            return res.status(400).json({ msg: "Verification in progress. Please check your email for OTP." });
+            return res.status(200).json({ msg: "Verification in progress. Please check your email for OTP." });
         }
 
         const otp = crypto.randomInt(100000, 999999).toString();
@@ -61,6 +70,7 @@ userRouter.post('/api/sendOtp', async (req, res) => {
             email,
             otp,
             otpExpires,
+            otpVerified: false
         });
 
         await otpRecord.save();
@@ -83,7 +93,8 @@ userRouter.post('/api/verifyOtp', async (req, res) => {
             return res.status(400).json({ msg: "Invalid or expired OTP." });
         }
 
-        await Otp.deleteOne({ email });
+        otpRecord.otpVerified = true;
+        await otpRecord.save();
 
         res.json({ msg: "Email verified successfully." });
 

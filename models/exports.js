@@ -4,7 +4,6 @@ const exportSchema = mongoose.Schema({
 
     sbNo: {
         type: Number,
-        // require: true
     },
     sbDate: {
         type: String,
