@@ -9,6 +9,7 @@ const favoriteRouter = require('./routes/favorite');
 const userRouter = require('./routes/user');
 const faqRouter = require('./routes/faq.js');
 const shipmentRouter = require('./routes/shipment.js');
+const shipmentPODRouter = require('./routes/shipmentPOD.js');
 
 // INITIALIZE
 const PORT = 3000;
@@ -25,6 +26,7 @@ app.use(favoriteRouter);
 app.use(userRouter);
 app.use(faqRouter);
 app.use(shipmentRouter);
+app.use(shipmentPODRouter);
 
 // CONNECT TO DATABASE
 const connectDB = async () => {
