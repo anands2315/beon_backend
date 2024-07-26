@@ -168,7 +168,7 @@ userRouter.post('/api/forgetPassword', async (req, res) => {
 
         await user.save();
 
-        const resetUrl = `https://66a374654397b8052e680a9f--beonbusiness.netlify.app/resetPassword/${resetToken}`;
+        const resetUrl = `https://beonbusiness.netlify.app/resetPassword/${resetToken}`;
         sendResetPasswordMail(email, resetUrl);
 
         res.json({ msg: "Password reset token sent to your email." });
