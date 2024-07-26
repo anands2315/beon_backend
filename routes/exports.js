@@ -114,6 +114,43 @@ exportRouter.get('/api/unique-pods', async (req, res) => {
     }
 });
 
+exportRouter.get('/api/unique-pods-not-in-shipment', async (req, res) => {
+    try {
+        const uniquePODS = await ExportData.aggregate([
+            {
+                $group: {
+                    _id: "$portOfDischarge"
+                }
+            },
+            {
+                $lookup: {
+                    from: "shipmentpods", // The name of the collection containing ShipmentPOD documents
+                    localField: "_id",
+                    foreignField: "pod", // Adjust this field according to the actual field name in ShipmentPOD collection
+                    as: "shipmentPodMatch"
+                }
+            },
+            {
+                $match: {
+                    "shipmentPodMatch": { $size: 0 }
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    portOfDischarge: "$_id"
+                }
+            }
+        ]);
+
+        res.status(200).json(uniquePODS);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+
 
 exportRouter.get("/api/exports", async (req, res) => {
     try {
@@ -162,7 +199,7 @@ exportRouter.get("/api/exports/search", async (req, res) => {
 
         const exportData = await ExportData.find({
             $or: orQuery
-        });
+        }).sort({ sbDate: -1 });
 
         res.json(exportData);
     } catch (e) {
@@ -203,7 +240,7 @@ exportRouter.get("/api/exports/search-page", async (req, res) => {
 
         const exportData = await ExportData.find({
             $or: orQuery
-        }).skip(skip).limit(limit);
+        }).sort({ sbDate: -1 }).skip(skip).limit(limit);
 
         res.json(exportData);
     } catch (e) {
@@ -214,6 +251,7 @@ exportRouter.get("/api/exports/search-page", async (req, res) => {
 
 
 
+
 exportRouter.get("/api/exports/by-name-page", async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
@@ -221,7 +259,7 @@ exportRouter.get("/api/exports/by-name-page", async (req, res) => {
         const skip = (page - 1) * limit;
 
         const exportData = await ExportData
-            .find({ exporterName: { $regex: req.query.exporterName, $options: "i" } })
+            .find({ exporterName: { $regex: req.query.exporterName, $options: "i" } }).sort({ sbDate: -1 })
             .skip(skip)
             .limit(limit);
 
@@ -233,7 +271,7 @@ exportRouter.get("/api/exports/by-name-page", async (req, res) => {
 
 exportRouter.get("/api/exports/by-name", async (req, res) => {
     try {
-        const exportData = await ExportData.find({ exporterName: { $regex: req.query.exporterName, $options: "i" } });
+        const exportData = await ExportData.find({ exporterName: { $regex: req.query.exporterName, $options: "i" } }).sort({ sbDate: -1 });
         res.json(exportData);
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -243,7 +281,7 @@ exportRouter.get("/api/exports/by-name", async (req, res) => {
 
 exportRouter.get("/api/exports/by-country", async (req, res) => {
     try {
-        const exportData = await ExportData.find({ countryOfDestination: { $regex: req.query.countryOfDestination, $options: "i" } }).limit(2000);
+        const exportData = await ExportData.find({ countryOfDestination: { $regex: req.query.countryOfDestination, $options: "i" } }).sort({ sbDate: -1 }).limit(2000);
         res.json(exportData);
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -257,7 +295,7 @@ exportRouter.get("/api/exports/by-country-page", async (req, res) => {
         const skip = (page - 1) * limit;
 
         const exportData = await ExportData
-            .find({ countryOfDestination: { $regex: req.query.countryOfDestination, $options: "i" } })
+            .find({ countryOfDestination: { $regex: req.query.countryOfDestination, $options: "i" } }).sort({ sbDate: -1 })
             .skip(skip)
             .limit(limit);
 
@@ -270,7 +308,7 @@ exportRouter.get("/api/exports/by-country-page", async (req, res) => {
 
 exportRouter.get("/api/exports/by-itemDesc", async (req, res) => {
     try {
-        const exportData = await ExportData.find({ itemDesc: { $regex: req.query.itemDesc, $options: "i" } });
+        const exportData = await ExportData.find({ itemDesc: { $regex: req.query.itemDesc, $options: "i" } }).sort({ sbDate: -1 });
         res.json(exportData);
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -284,13 +322,13 @@ exportRouter.get("/api/exports/by-itemDesc-page", async (req, res) => {
         const skip = (page - 1) * limit;
 
         const exportData = await ExportData
-            .find({ itemDesc: { $regex: req.query.itemDesc, $options: "i" } })
+            .find({ itemDesc: { $regex: req.query.itemDesc, $options: "i" } }).sort({ sbDate: -1 })
             .skip(skip)
             .limit(limit);
 
         res.json(exportData);
     } catch (e) {
-        res.status500.json({ error: e.message });
+        res.status(500).json({ error: e.message });
     }
 });
 
@@ -301,7 +339,7 @@ exportRouter.get("/api/exports/by-iec", async (req, res) => {
         const limitValue = limit ? parseInt(limit, 10) : null;
 
         // Build the query
-        let query = ExportData.find({ iec: { $regex: iec, $options: "i" } });
+        let query = ExportData.find({ iec: { $regex: iec, $options: "i" } }).sort({ sbDate: -1 });
 
         if (limitValue) {
             query = query.limit(limitValue);
@@ -384,7 +422,7 @@ exportRouter.get("/api/exports/by-ritcCode", async (req, res) => {
         }
 
         // Find export data with the specified ritcCode
-        const exportData = await ExportData.find({ ritcCode: ritcCode });
+        const exportData = await ExportData.find({ ritcCode: ritcCode }).sort({ sbDate: -1 });
         res.json(exportData);
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -405,7 +443,7 @@ exportRouter.get("/api/exports/by-ritcCode-page", async (req, res) => {
 
         // Find export data with the specified ritcCode
         const exportData = await ExportData
-            .find({ ritcCode: ritcCode })
+            .find({ ritcCode: ritcCode }).sort({ sbDate: -1 })
             .skip(skip)
             .limit(limit);
 
@@ -419,7 +457,7 @@ exportRouter.get("/api/exports/by-ritcCode-page", async (req, res) => {
 
 exportRouter.get("/api/exports/by-portOfDischarge", async (req, res) => {
     try {
-        const exportData = await ExportData.find({ portOfDischarge: { $regex: req.query.portOfDischarge, $options: "i" } });
+        const exportData = await ExportData.find({ portOfDischarge: { $regex: req.query.portOfDischarge, $options: "i" } }).sort({ sbDate: -1 });
         res.json(exportData);
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -433,7 +471,7 @@ exportRouter.get("/api/exports/by-portOfDischarge-page", async (req, res) => {
         const skip = (page - 1) * limit;
 
         const exportData = await ExportData
-            .find({ portOfDischarge: { $regex: req.query.portOfDischarge, $options: "i" } })
+            .find({ portOfDischarge: { $regex: req.query.portOfDischarge, $options: "i" } }).sort({ sbDate: -1 })
             .skip(skip)
             .limit(limit);
 
@@ -447,7 +485,7 @@ exportRouter.get("/api/exports/by-portOfDischarge-page", async (req, res) => {
 
 exportRouter.get("/api/exports/by-currency", async (req, res) => {
     try {
-        const exportData = await ExportData.find({ currency: { $regex: req.query.currency, $options: "i" } });
+        const exportData = await ExportData.find({ currency: { $regex: req.query.currency, $options: "i" } }).sort({ sbDate: -1 });
         res.json(exportData);
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -461,7 +499,7 @@ exportRouter.get("/api/exports/by-currency-page", async (req, res) => {
         const skip = (page - 1) * limit;
 
         const exportData = await ExportData
-            .find({ currency: { $regex: req.query.currency, $options: "i" } })
+            .find({ currency: { $regex: req.query.currency, $options: "i" } }).sort({ sbDate: -1 })
             .skip(skip)
             .limit(limit);
 

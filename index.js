@@ -10,6 +10,7 @@ const userRouter = require('./routes/user');
 const faqRouter = require('./routes/faq.js');
 const shipmentRouter = require('./routes/shipment.js');
 const shipmentPODRouter = require('./routes/shipmentPOD.js');
+const shipmentHSNRouter = require('./routes/shipmentHSN.js');
 
 // INITIALIZE
 const PORT = 3000;
@@ -27,6 +28,7 @@ app.use(userRouter);
 app.use(faqRouter);
 app.use(shipmentRouter);
 app.use(shipmentPODRouter);
+app.use(shipmentHSNRouter);
 
 // CONNECT TO DATABASE
 const connectDB = async () => {

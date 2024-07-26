@@ -3,7 +3,7 @@ const bcryptjs = require('bcryptjs');
 const User = require("../models/user");
 const crypto = require('crypto');
 const Otp = require('../models/otp');
-const sendOtpMail = require('../utils/mailer');
+const { sendOtpMail, sendResetPasswordMail } = require('../utils/mailer');
 const userRouter = express.Router();
 
 userRouter.post('/api/signUp', async (req, res) => {
@@ -151,6 +151,58 @@ userRouter.post('/api/signin', async (req, res) => {
     }
 });
 
+userRouter.post('/api/forgetPassword', async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(400).json({ msg: "User with this email does not exist!" });
+        }
+
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const resetTokenExpires = Date.now() + 3600000; // Token expires in 1 hour
+
+        user.resetPasswordToken = resetToken;
+        user.resetPasswordExpires = resetTokenExpires;
+
+        await user.save();
+
+        const resetUrl = `http://${req.headers.host}/api/resetPassword/${resetToken}`;
+        sendResetPasswordMail(email, resetUrl);
+
+        res.json({ msg: "Password reset token sent to your email." });
+
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+userRouter.post('/api/resetPassword/:resetToken', async (req, res) => {
+    try {
+        const { resetToken } = req.params;
+        const { newPassword } = req.body;
+
+        const user = await User.findOne({ resetPasswordToken: resetToken, resetPasswordExpires: { $gt: Date.now() } });
+        if (!user) {
+            return res.status(400).json({ msg: "Invalid or expired reset token." });
+        }
+
+        const hashedPassword = await bcryptjs.hash(newPassword, 8);
+
+        user.password = hashedPassword;
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpires = undefined;
+
+        await user.save();
+
+        res.json({ msg: "Password reset successfully." });
+
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 userRouter.get("/api/user", async (req, res) => {
     try {
         const users = await User.find({});
@@ -265,5 +317,7 @@ userRouter.delete('/api/deleteAddedUser/:userId', async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 });
+
+
 
 module.exports = userRouter;

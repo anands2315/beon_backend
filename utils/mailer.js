@@ -1,33 +1,6 @@
 const nodemailer = require('nodemailer');
 
-// let testAccount = nodemailer.createTestAccount();
-
-// const transporter = nodemailer.createTransport({
-//     host: "smtp.ethereal.email",
-//     port: 587,
-//     auth: {
-//         user: "micaela.jones19@ethereal.email",
-//         pass: "HXGewrzK3bWfGhmKa8",
-//     }
-// });
-
-// const sendOtpMail = (email, otp) => {
-//     const mailOptions = {
-//         from: '"Anand Singh" <micaela.jones19@ethereal.email>',
-//         to: email,
-//         subject: 'OTP Verification',
-//         text: `Your OTP for verification is ${otp}`
-//     };
-
-//     transporter.sendMail(mailOptions, (error, info) => {
-//         if (error) {
-//             return console.log(error);
-//         }
-//         console.log('Email sent: ' + info.response);
-//     });
-// };
-
-//// Replace this with your app-specific password
+// Replace this with your app-specific password
 const appPassword = 'eysr wezr hjia unkc';
 
 const transporter = nodemailer.createTransport({
@@ -39,14 +12,14 @@ const transporter = nodemailer.createTransport({
 });
 
 const sendOtpMail = (email, otp) => {
-    const mailOptions = {
+    const receiver = {
         from: 'anandksingh098@gmail.com',
         to: email,
         subject: 'OTP Verification',
         text: `Your OTP for verification is ${otp}`
     };
 
-    transporter.sendMail(mailOptions, (error, info) => {
+    transporter.sendMail(receiver, (error, info) => {
         if (error) {
             return console.log(error);
         }
@@ -54,4 +27,26 @@ const sendOtpMail = (email, otp) => {
     });
 };
 
-module.exports = sendOtpMail;
+const sendResetPasswordMail = (email, resetUrl) => {
+    const receiver = {
+        from: 'anandksingh098@gmail.com',
+        to: email,
+        subject: 'Reset Password',
+        text: `You are receiving this because you (or someone else) have requested the reset of the password for your account.\n\n
+               Please click on the following link, or paste this into your browser to complete the process:\n\n
+               ${resetUrl}\n\n
+               If you did not request this, please ignore this email and your password will remain unchanged.\n`
+    };
+
+    transporter.sendMail(receiver, (error, info) => {
+        if (error) {
+            return console.log(error);
+        }
+        console.log('Reset password email sent: ' + info.response);
+    });
+};
+
+module.exports = {
+    sendOtpMail,
+    sendResetPasswordMail
+};

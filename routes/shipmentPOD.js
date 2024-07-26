@@ -46,7 +46,7 @@ shipmentPODRouter.get('/api/shipmentPOD', (req, res) => {
 shipmentPODRouter.get('/api/shipmentPOD/:pod', (req, res) => {
     const pod = req.params.pod;
 
-    ShipmentPOD.find({ pod: { $regex: pod, $options: "i" } })
+    ShipmentPOD.find({ pod })
         .then(docs => {
             res.status(200).send(docs);
         })
