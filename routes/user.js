@@ -186,6 +186,7 @@ userRouter.post('/api/resetPassword/:resetToken', async (req, res) => {
     try {
         const { resetToken } = req.params;
         const { newPassword } = req.body;
+        console.log(newPassword);
 
         const user = await User.findOne({ resetPasswordToken: resetToken, resetPasswordExpires: { $gt: Date.now() } });
         if (!user) {
