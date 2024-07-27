@@ -1,22 +1,25 @@
 const nodemailer = require('nodemailer');
 
 // Replace this with your app-specific password
-const appPassword = 'eysr wezr hjia unkc';
+const appPassword = 'ksct adrm zydr psrw';
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: 'anandksingh098@gmail.com',
+        user: 'beonbusinessofficial@gmail.com',
         pass: appPassword
     }
 });
 
 const sendOtpMail = (email, otp) => {
     const receiver = {
-        from: 'anandksingh098@gmail.com',
+        from: 'beonbusinessofficial@gmail.com',
         to: email,
-        subject: 'OTP Verification',
-        text: `Your OTP for verification is ${otp}`
+        subject: 'Beon Business Email Verification',
+        text: `Thank you for signing up. Please verify your email address using the OTP below:
+        ${otp}
+      Enter this OTP in the verification form to complete your registration.
+      If you did not request this, please ignore this email.`
     };
 
     transporter.sendMail(receiver, (error, info) => {
