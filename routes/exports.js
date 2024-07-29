@@ -1,5 +1,6 @@
 const express = require('express');
 const ExportData = require('../models/exports');
+const ShipmentPOD = require('../models/shipmentPOD');
 const TopSchema = require('../models/topExporters');
 const exportRouter = express.Router();
 
@@ -92,17 +93,17 @@ exportRouter.get("/api/exports/sorted", async (req, res) => {
 
 exportRouter.get('/api/unique-pods', async (req, res) => {
     try {
-        // Aggregation pipeline to get unique portOfDischarge
-        const uniquePODS = await ExportData.aggregate([
+        // Aggregation pipeline to get unique pods
+        const uniquePODS = await ShipmentPOD.aggregate([
             {
                 $group: {
-                    _id: "$portOfDischarge"
+                    _id: "$pod"
                 }
             },
             {
                 $project: {
                     _id: 0,
-                    portOfDischarge: "$_id"
+                    pod: "$_id"
                 }
             }
         ]);
