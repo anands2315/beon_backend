@@ -36,10 +36,7 @@ const sendResetPasswordMail = (email, resetUrl) => {
         from: 'support@beonbusiness.com',
         to: email,
         subject: 'Reset Password',
-        text: `You are receiving this because you (or someone else) have requested the reset of the password for your account.\n
-               Please click on the following link, or paste this into your browser to complete the process:\n\n
-               ${resetUrl}\n\n
-               If you did not request this, please ignore this email and your password will remain unchanged.\n`
+        text: `You are receiving this because you (or someone else) have requested the reset of the password for your account.\nPlease click on the following link, or paste this into your browser to complete the process:\n\n${resetUrl}\n\nIf you did not request this, please ignore this email and your password will remain unchanged.\n`
     };
 
     transporter.sendMail(receiver, (error, info) => {
