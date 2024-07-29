@@ -171,11 +171,11 @@ userRouter.post('/api/forgetPassword', async (req, res) => {
         // const resetUrl = `http://${req.headers.host}/api/resetPassword/${resetToken}`;
         // sendResetPasswordMail(email, resetUrl);
 
-        // const resetUrl = `https://beonbusiness.netlify.app/resetPassword/${resetToken}`;
-        // sendResetPasswordMail(email, resetUrl);
-
-        const resetUrl = `https://beonbusiness.com/resetPassword/${resetToken}`;
+        const resetUrl = `https://beonbusiness.netlify.app/resetPassword/${resetToken}`;
         sendResetPasswordMail(email, resetUrl);
+
+        // const resetUrl = `https://beonbusiness.com/resetPassword/${resetToken}`;
+        // sendResetPasswordMail(email, resetUrl);
 
 
         res.json({ msg: "Password reset token sent to your email." });
