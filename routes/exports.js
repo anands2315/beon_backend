@@ -2,6 +2,7 @@ const express = require('express');
 const ExportData = require('../models/exports');
 const ShipmentPOD = require('../models/shipmentPOD');
 const TopSchema = require('../models/topExporters');
+const chaptercodedatas = require('../models/chapterCode');
 const exportRouter = express.Router();
 
 
@@ -94,16 +95,16 @@ exportRouter.get("/api/exports/sorted", async (req, res) => {
 exportRouter.get('/api/unique-pods', async (req, res) => {
     try {
         // Aggregation pipeline to get unique pods
-        const uniquePODS = await ShipmentPOD.aggregate([
+        const uniquePODS = await ExportData.aggregate([
             {
                 $group: {
-                    _id: "$pod"
+                    _id: "$countryOfDestination"
                 }
             },
             {
                 $project: {
                     _id: 0,
-                    pod: "$_id"
+                    countryOfDestination: "$_id"
                 }
             }
         ]);
@@ -151,7 +152,78 @@ exportRouter.get('/api/unique-pods-not-in-shipment', async (req, res) => {
     }
 });
 
+exportRouter.post('/api/aggregate-chapter-code-data', async (req, res) => {
+    try {
+        // Step 1: Aggregate shipment counts by chapter code and month
+        await ExportData.aggregate([
+            {
+                $addFields: {
+                    chapterCode: { $substr: ["$ritcCode", 0, 2] }, // Extract chapter code from ritcCode
+                    monthYear: {
+                        $concat: [
+                            { $substr: ["$sbDate", 3, 2] }, "-", { $substr: ["$sbDate", 6, 4] }
+                        ]
+                    } // Create monthYear field
+                }
+            },
+            {
+                $group: {
+                    _id: {
+                        chapterCode: "$chapterCode",
+                        monthYear: "$monthYear"
+                    },
+                    shipmentCount: { $sum: 1 } // Count the number of documents for each chapterCode and monthYear
+                }
+            },
+            {
+                $group: {
+                    _id: "$_id.chapterCode",
+                    shipmentsByMonth: {
+                        $push: {
+                            monthYear: "$_id.monthYear",
+                            shipmentCount: "$shipmentCount"
+                        }
+                    },
+                    totalShipments: { $sum: "$shipmentCount" } // Total number of shipments for the chapterCode
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    chapterCode: "$_id",
+                    shipmentsByMonth: 1,
+                    totalShipments: 1
+                }
+            },
+            {
+                $out: "chaptercodedatas"  // Store the result in a new collection 'chaptercodedatas'
+            }
+        ]);
 
+        res.status(200).json({ message: 'Aggregation and storing completed successfully.' });
+    } catch (err) {
+        console.error('Error during aggregation and storing:', err);
+        res.status(500).json({ error: 'An error occurred during aggregation.' });
+    }
+});
+
+exportRouter.get('/api/chapter-code-data/:chapterCode', async (req, res) => {
+    try {
+        const { chapterCode } = req.params;
+
+        // Fetch data for the specified chapterCode
+        const data = await chaptercodedatas.findOne({ chapterCode }).sort({ monthYear: -1 });
+
+        if (!data) {
+            return res.status(404).json({ message: 'Data not found for the specified chapter code.' });
+        }
+
+        res.status(200).json(data);
+    } catch (err) {
+        console.error('Error fetching chapter code data:', err);
+        res.status(500).json({ error: 'An error occurred while fetching chapter code data.' });
+    }
+});
 
 exportRouter.get("/api/exports", async (req, res) => {
     try {
@@ -282,7 +354,7 @@ exportRouter.get("/api/exports/by-name", async (req, res) => {
 
 exportRouter.get("/api/exports/by-country", async (req, res) => {
     try {
-        const exportData = await ExportData.find({ countryOfDestination: { $regex: req.query.countryOfDestination, $options: "i" } }).sort({ sbDate: -1 }).limit(2000);
+        const exportData = await ExportData.find({ countryOfDestination: { $regex: req.query.countryOfDestination, $options: "i" } }).sort({ sbDate: -1 });
         res.json(exportData);
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -355,63 +427,6 @@ exportRouter.get("/api/exports/by-iec", async (req, res) => {
     }
 });
 
-exportRouter.get("/api/exports/by-ritcCode-chart", async (req, res) => {
-    try {
-        const ritcCode = Number(req.query.ritcCode);
-
-        // If ritcCode is not a number, return an error
-        if (isNaN(ritcCode)) {
-            return res.status(400).json({ error: "Invalid ritcCode parameter" });
-        }
-
-        // Find export data with the specified ritcCode
-        const exportData = await ExportData.find({ ritcCode: ritcCode });
-
-        // Transform and aggregate the data
-        let ritcCodeData = [];
-        let ritcCodeCounts = {};
-
-        exportData.forEach(exportDataItem => {
-            let data = {
-                'Company Name': exportDataItem.exporterName,
-                'SB.No.': exportDataItem.sbNo,
-                'SB.Date': exportDataItem.sbDate,
-                'Iec': exportDataItem.iec,
-                'Country': exportDataItem.countryOfDestination,
-                'POD': exportDataItem.portOfDischarge,
-                'UQC': exportDataItem.uqc,
-                'RITC Code': exportDataItem.ritcCode,
-                'Currency': exportDataItem.currency,
-                'Quantity': exportDataItem.quantity,
-                'Item Desc': exportDataItem.itemDesc,
-                'Item Rate': exportDataItem.itemRate,
-                'Item No': exportDataItem.itemNo,
-                'Invoice Ser.No': exportDataItem.invoiceSerNo,
-                'Invoice No': exportDataItem.invoiceNo,
-                'Challan No': exportDataItem.challanNo,
-                'FOB': exportDataItem.fob,
-                '_id': exportDataItem._id,
-            };
-            ritcCodeData.push(data);
-
-            let year = data['SB.Date'].toString().split('-')[2];
-            let month = data['SB.Date'].toString().split('-')[1];
-            let yearMonth = `${year}-${month}`;
-
-            if (ritcCodeCounts[yearMonth]) {
-                ritcCodeCounts[yearMonth] += 1;
-            } else {
-                ritcCodeCounts[yearMonth] = 1;
-            }
-        });
-
-        // Send the transformed and aggregated data as the response
-        res.json({ ritcCodeData, ritcCodeCounts });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
-});
-
 
 exportRouter.get("/api/exports/by-ritcCode", async (req, res) => {
     try {
@@ -423,7 +438,7 @@ exportRouter.get("/api/exports/by-ritcCode", async (req, res) => {
         }
 
         // Find export data with the specified ritcCode
-        const exportData = await ExportData.find({ ritcCode: ritcCode }).sort({ sbDate: -1 });
+        const exportData = await ExportData.find({ ritcCode: ritcCode }).sort({ sbDate: -1 }).limit(2000);
         res.json(exportData);
     } catch (e) {
         res.status(500).json({ error: e.message });
