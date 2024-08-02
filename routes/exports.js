@@ -98,13 +98,13 @@ exportRouter.get('/api/unique-pods', async (req, res) => {
         const uniquePODS = await ExportData.aggregate([
             {
                 $group: {
-                    _id: "$countryOfDestination"
+                    _id: "$ritcCode"
                 }
             },
             {
                 $project: {
                     _id: 0,
-                    countryOfDestination: "$_id"
+                    ritcCode: "$_id"
                 }
             }
         ]);
@@ -154,7 +154,6 @@ exportRouter.get('/api/unique-pods-not-in-shipment', async (req, res) => {
 
 exportRouter.post('/api/aggregate-chapter-code-data', async (req, res) => {
     try {
-        // Step 1: Aggregate shipment counts by chapter code and month
         await ExportData.aggregate([
             {
                 $addFields: {
@@ -191,12 +190,17 @@ exportRouter.post('/api/aggregate-chapter-code-data', async (req, res) => {
                 $project: {
                     _id: 0,
                     chapterCode: "$_id",
-                    shipmentsByMonth: 1,
+                    shipmentsByMonth: {
+                        $sortArray: {
+                            input: "$shipmentsByMonth",
+                            sortBy: { monthYear: 1 }
+                        }
+                    },
                     totalShipments: 1
                 }
             },
             {
-                $out: "chaptercodedatas"  // Store the result in a new collection 'chaptercodedatas'
+                $out: "chaptercodedatas" // Store the result in a new collection 'chaptercodedatas'
             }
         ]);
 
@@ -207,12 +211,145 @@ exportRouter.post('/api/aggregate-chapter-code-data', async (req, res) => {
     }
 });
 
+exportRouter.post('/api/aggregate-port-data', async (req, res) => {
+    try {
+        const aggregatedData = await ExportData.aggregate([
+            {
+                $addFields: {
+                    chapterCode: { $substr: ["$ritcCode", 0, 2] }, // Extract chapter code from ritcCode
+                    monthYear: {
+                        $concat: [
+                            { $substr: ["$sbDate", 3, 2] }, "-", { $substr: ["$sbDate", 6, 4] }
+                        ]
+                    } // Create monthYear field
+                }
+            },
+            {
+                $group: {
+                    _id: {
+                        portOfDischarge: "$portOfDischarge",
+                        chapterCode: "$chapterCode",
+                        monthYear: "$monthYear"
+                    },
+                    shipmentCount: { $sum: 1 } // Count the number of documents for each chapterCode and monthYear
+                }
+            },
+            {
+                $group: {
+                    _id: {
+                        portOfDischarge: "$_id.portOfDischarge",
+                        chapterCode: "$_id.chapterCode"
+                    },
+                    shipmentsByMonth: {
+                        $push: {
+                            monthYear: "$_id.monthYear",
+                            shipmentCount: "$shipmentCount"
+                        }
+                    },
+                    totalShipments: { $sum: "$shipmentCount" } // Total number of shipments for the chapterCode
+                }
+            },
+            {
+                $group: {
+                    _id: "$_id.portOfDischarge",
+                    chapterCodes: {
+                        $push: {
+                            chapterCode: "$_id.chapterCode",
+                            shipmentsByMonth: {
+                                $sortArray: {
+                                    input: "$shipmentsByMonth",
+                                    sortBy: { monthYear: 1 }
+                                }
+                            },
+                            totalShipments: "$totalShipments"
+                        }
+                    },
+                    totalShipments: { $sum: "$totalShipments" },
+                    fetchedData: { $sum: "$totalShipments" } // Assuming fetchedData is the total number of shipments
+                }
+            },
+            {
+                $lookup: {
+                    from: "exportdata",
+                    localField: "_id",
+                    foreignField: "portOfDischarge",
+                    as: "exportData"
+                }
+            },
+            {
+                $unwind: "$exportData"
+            },
+            {
+                $group: {
+                    _id: {
+                        portOfDischarge: "$_id",
+                        continent: "$exportData.countryOfDestination"
+                    },
+                    count: { $sum: 1 }
+                }
+            },
+            {
+                $group: {
+                    _id: "$_id.portOfDischarge",
+                    topExportContinents: {
+                        $push: {
+                            continent: "$_id.continent",
+                            count: "$count"
+                        }
+                    },
+                    totalShipments: { $first: "$totalShipments" },
+                    chapterCodes: { $first: "$chapterCodes" },
+                    fetchedData: { $first: "$fetchedData" }
+                }
+            },
+            {
+                $addFields: {
+                    "topExportContinents.percentage": {
+                        $map: {
+                            input: "$topExportContinents",
+                            as: "continent",
+                            in: {
+                                $multiply: [
+                                    { $divide: ["$$continent.count", "$totalShipments"] },
+                                    100
+                                ]
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    pod: "$_id",
+                    chapterCodes: 1,
+                    totalShipments: 1,
+                    fetchedData: 1,
+                    topExportContinents: 1
+                }
+            },
+            {
+                $out: "shipmentpods" // Store the result in a new collection 'shipmentpods'
+            }
+        ]);
+
+        console.log('Aggregated Data:', JSON.stringify(aggregatedData, null, 2));
+
+        res.status(200).json({ message: 'Aggregation and storing completed successfully.', data: aggregatedData });
+    } catch (err) {
+        console.error('Error during aggregation and storing:', err);
+        res.status(500).json({ error: 'An error occurred during aggregation.' });
+    }
+});
+
+
+
 exportRouter.get('/api/chapter-code-data/:chapterCode', async (req, res) => {
     try {
         const { chapterCode } = req.params;
 
         // Fetch data for the specified chapterCode
-        const data = await chaptercodedatas.findOne({ chapterCode }).sort({ monthYear: -1 });
+        const data = await chaptercodedatas.findOne({ chapterCode });
 
         if (!data) {
             return res.status(404).json({ message: 'Data not found for the specified chapter code.' });
@@ -344,7 +481,7 @@ exportRouter.get("/api/exports/by-name-page", async (req, res) => {
 
 exportRouter.get("/api/exports/by-name", async (req, res) => {
     try {
-        const exportData = await ExportData.find({ exporterName: { $regex: req.query.exporterName, $options: "i" } }).sort({ sbDate: -1 });
+        const exportData = await ExportData.find({ exporterName: { $regex: req.query.exporterName, $options: "i" } }).sort({ sbDate: -1 }).limit(2000);
         res.json(exportData);
     } catch (e) {
         res.status(500).json({ error: e.message });

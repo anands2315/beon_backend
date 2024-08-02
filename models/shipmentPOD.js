@@ -2,12 +2,19 @@ const mongoose = require('mongoose');
 
 const shipmentPODSchema = new mongoose.Schema({
     pod: { type: String, required: true },
-    monthWiseShipments: [
+    chapterCodes: [
         {
-            month: { type: String, required: true },
-            count: { type: Number, required: true }
+            chapterCode: { type: String, required: true },
+            shipmentsByMonth: [
+                {
+                    monthYear: { type: String, required: true },
+                    shipmentCount: { type: Number, required: true }
+                }
+            ],
+            totalShipments: { type: Number, required: true }
         }
     ],
+    totalShipments: { type: Number, required: true },
     fetchedData: { type: Number, required: true },
     topExportContinents: [
         {
