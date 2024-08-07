@@ -12,14 +12,15 @@ const shipmentRouter = require('./routes/shipment.js');
 const shipmentPODRouter = require('./routes/shipmentPOD.js');
 const shipmentHSNRouter = require('./routes/shipmentHSN.js');
 const shipmentNameRouter = require('./routes/shipmentName.js');
-const aggregationRouter = require('./routes/aggregate.js'); // Ensure this path is correct
+const aggregationRouter = require('./routes/aggregate.js');
+const issueRouter = require('./routes/issue.js');
 
 
 // INITIALIZE
 const PORT = 3000;
 const app = express();
-const DB = "mongodb://benodb:benoadmin1313@3.7.3.84:27017/?authSource=test";
-// const DB = "mongodb+srv://anandsinghfuerte:beon123@cluster0.zue4qwl.mongodb.net/mydatabase?retryWrites=true&w=majority&appName=Cluster0";
+// const DB = "mongodb://benodb:benoadmin1313@3.7.3.84:27017/?authSource=test";
+const DB = "mongodb+srv://anandsinghfuerte:beon123@cluster0.zue4qwl.mongodb.net/mydatabase?retryWrites=true&w=majority&appName=Cluster0";
 
 
 // MIDDLEWARE
@@ -35,6 +36,7 @@ app.use(shipmentPODRouter);
 app.use(shipmentHSNRouter);
 app.use(shipmentNameRouter);
 app.use(aggregationRouter);
+app.use(issueRouter);
 
 // CONNECT TO DATABASE
 const connectDB = async () => {

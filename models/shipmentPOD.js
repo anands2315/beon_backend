@@ -8,14 +8,21 @@ const shipmentPODSchema = new mongoose.Schema({
             count: { type: Number, required: true }
         }
     ],
+    chapterCodeCounts: {
+        type: Map,
+        of: {
+            type: Map,
+            of: Number
+        }
+    },
     fetchedData: { type: Number, required: true },
     topExportContinents: [
         {
             continent: { type: String, required: true },
             count: { type: Number, required: true },
-            percentage: { type: Number, required: true },
-        },
-    ],
+            percentage: { type: Number, required: true }
+        }
+    ]
 });
 
 const ShipmentPOD = mongoose.model('ShipmentPOD', shipmentPODSchema);

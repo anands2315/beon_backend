@@ -1,6 +1,6 @@
 const express = require('express');
 const ExportData = require('../models/exports'); // Assuming this is the model for ExportData
-const ShipmentPOD = require('../models/shipmentPOD'); // Assuming this is the model for ShipmentPOD
+const ShipmentName = require('../models/shipmentName'); // Assuming this is the model for ShipmentName
 const aggregationRouter = express.Router();
 
 const countryToContinent = {
@@ -205,18 +205,18 @@ const countryToContinent = {
     'BANGLADESH': 'Asia',
 };
 
-// Helper functions (existing)
-
+// Helper function to calculate fetchedData
 const calculateFetchedData = (monthWiseShipments) => {
     return monthWiseShipments.reduce((total, shipment) => total + shipment.count, 0);
 };
 
+// Helper function to get continent based on country
 const getContinent = (country) => {
     return countryToContinent[country.toUpperCase()] || 'Unknown';
 };
 
-// POST endpoint to aggregate and store POD-wise data
-aggregationRouter.post('/api/aggregatePODData', async (req, res) => {
+// POST endpoint to aggregate and store data
+aggregationRouter.post('/api/aggregateExportData', async (req, res) => {
     try {
         const aggregatedData = await ExportData.aggregate([
             {
@@ -237,26 +237,22 @@ aggregationRouter.post('/api/aggregatePODData', async (req, res) => {
                             })),
                             default: 'Unknown'
                         }
-                    },
-                    chapterCode: {
-                        $substr: ["$ritcCode", 0, 2]
                     }
                 }
             },
             {
                 $group: {
                     _id: {
-                        pod: '$portOfDischarge',
+                        exporterName: '$exporterName',
                         month: '$month',
-                        continent: '$continent',
-                        chapterCode: '$chapterCode'
+                        continent: '$continent'
                     },
                     count: { $sum: 1 }
                 }
             },
             {
                 $group: {
-                    _id: '$_id.pod',
+                    _id: '$_id.exporterName',
                     monthWiseShipments: {
                         $push: {
                             month: '$_id.month',
@@ -268,22 +264,24 @@ aggregationRouter.post('/api/aggregatePODData', async (req, res) => {
                             continent: '$_id.continent',
                             count: '$count'
                         }
-                    },
-                    chapterCodeCounts: {
-                        $push: {
-                            chapterCode: '$_id.chapterCode',
-                            month: '$_id.month',
-                            count: '$count'
-                        }
                     }
                 }
             },
             {
                 $project: {
-                    pod: '$_id',
+                    exporterName: '$_id',
                     monthWiseShipments: 1,
-                    topExportContinents: 1,
-                    chapterCodeCounts: 1
+                    topExportContinents: 1
+                }
+            },
+            {
+                $addFields: {
+                    monthWiseShipments: {
+                        $sortArray: {
+                            input: "$monthWiseShipments",
+                            sortBy: { month: 1 }
+                        }
+                    }
                 }
             }
         ]);
@@ -324,33 +322,23 @@ aggregationRouter.post('/api/aggregatePODData', async (req, res) => {
                 ...continent,
                 percentage: totalCount > 0 ? ((continent.count / totalCount) * 100).toFixed(2) : '0.00'
             }));
-
-            // Combine chapter code counts
-            const chapterCodeCounts = data.chapterCodeCounts.reduce((acc, { chapterCode, month, count }) => {
-                if (!acc[chapterCode]) {
-                    acc[chapterCode] = {};
-                }
-                acc[chapterCode][month] = count;
-                return acc;
-            }, {});
-
             return {
-                pod: data.pod,
+                exporterName: data.exporterName,
                 monthWiseShipments,
-                chapterCodeCounts,
                 fetchedData,
                 topExportContinents: topExportContinentsWithPercentage
             };
         });
 
-        // Insert the aggregated data into ShipmentPOD collection
-        await ShipmentPOD.insertMany(shipmentData);
+        // Insert the aggregated data into ShipmentName collection
+        await ShipmentName.deleteMany({});
+        const savedData = await ShipmentName.insertMany(shipmentData);
 
-        res.status(200).send({ message: 'Aggregation and insertion completed successfully.' });
-    } catch (error) {
-        console.error('Error aggregating and storing POD data:', error);
-        res.status(500).send({ message: 'An error occurred during aggregation.' });
+        res.status(201).send(savedData);
+    } catch (err) {
+        res.status(500).send({ error: err.message });
     }
 });
+
 
 module.exports = aggregationRouter;
