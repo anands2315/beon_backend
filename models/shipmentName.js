@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
-const shipmentPODSchema = new mongoose.Schema({
-    pod: { type: String, required: true },
+const shipmentNameSchema = new mongoose.Schema({
+    exporterName: { type: String, required: true },
     monthWiseShipments: [
         {
             month: { type: String, required: true },
@@ -18,6 +18,6 @@ const shipmentPODSchema = new mongoose.Schema({
     ],
 });
 
-const ShipmentPOD = mongoose.model('ShipmentPOD', shipmentPODSchema);
+const ShipmentName = mongoose.model('ShipmentName', shipmentNameSchema);
 
-module.exports = ShipmentPOD;
+module.exports = ShipmentName;

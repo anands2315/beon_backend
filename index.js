@@ -11,6 +11,9 @@ const faqRouter = require('./routes/faq.js');
 const shipmentRouter = require('./routes/shipment.js');
 const shipmentPODRouter = require('./routes/shipmentPOD.js');
 const shipmentHSNRouter = require('./routes/shipmentHSN.js');
+const shipmentNameRouter = require('./routes/shipmentName.js');
+const aggregationRouter = require('./routes/aggregate.js'); // Ensure this path is correct
+
 
 // INITIALIZE
 const PORT = 3000;
@@ -30,6 +33,8 @@ app.use(faqRouter);
 app.use(shipmentRouter);
 app.use(shipmentPODRouter);
 app.use(shipmentHSNRouter);
+app.use(shipmentNameRouter);
+app.use(aggregationRouter);
 
 // CONNECT TO DATABASE
 const connectDB = async () => {

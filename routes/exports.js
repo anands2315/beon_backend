@@ -92,29 +92,30 @@ exportRouter.get("/api/exports/sorted", async (req, res) => {
     }
 });
 
-exportRouter.get('/api/unique-pods', async (req, res) => {
+exportRouter.get('/api/unique-exporters', async (req, res) => {
     try {
-        // Aggregation pipeline to get unique pods
-        const uniquePODS = await ExportData.aggregate([
+        // Aggregation pipeline to get unique exporter names
+        const uniqueExporters = await ExportData.aggregate([
             {
                 $group: {
-                    _id: "$ritcCode"
+                    _id: "$exporterName"
                 }
             },
             {
                 $project: {
                     _id: 0,
-                    ritcCode: "$_id"
+                    exporterName: "$_id"
                 }
             }
         ]);
 
-        res.status(200).json(uniquePODS);
+        res.status(200).json(uniqueExporters);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server Error' });
     }
 });
+
 
 exportRouter.get('/api/unique-pods-not-in-shipment', async (req, res) => {
     try {
@@ -379,44 +380,110 @@ exportRouter.get("/api/exports", async (req, res) => {
     }
 });
 
-
-
 exportRouter.get("/api/exports/search", async (req, res) => {
     try {
-        const searchQuery = req.query.q;
-        if (!searchQuery) {
-            return res.status(400).json({ error: "Query parameter 'q' is required" });
+        const { field, value, secondaryField, secondaryValue, page = 1, limit = 15 } = req.query;
+        const skip = (page - 1) * limit;
+
+        if (!value) {
+            return res.status(400).json({ error: "Query parameter 'value' is required" });
         }
 
-        const regexQuery = { $regex: searchQuery, $options: "i" };
-
-        // Determine if the search query can be converted to a number
-        const ritcCode = !isNaN(searchQuery) ? Number(searchQuery) : null;
-
-        // Build the $or array dynamically
-        const orQuery = [
-            { exporterName: regexQuery },
-            { countryOfDestination: regexQuery },
-            { itemDesc: regexQuery },
-            { portOfDischarge: regexQuery },
-            { currency: regexQuery },
-        ];
-
-        // Add ritcCode query only if it's a valid number
-        if (ritcCode !== null) {
-            orQuery.push({ ritcCode: ritcCode });
+        // Build the query
+        let query = {};
+        if (field) {
+            if (field === "ritcCode") {
+                const ritcCode = Number(value);
+                if (isNaN(ritcCode)) {
+                    return res.status(400).json({ error: "Invalid ritcCode parameter" });
+                }
+                query[field] = ritcCode;
+            } else {
+                query[field] = { $regex: value, $options: "i" };
+            }
+        } else {
+            const regexQuery = { $regex: value, $options: "i" };
+            query = {
+                $or: [
+                    { exporterName: regexQuery },
+                    { portOfDischarge: regexQuery },
+                    { currency: regexQuery },
+                    { ritcCode: Number(value) || { $exists: true } },
+                    { itemDesc: regexQuery },
+                    { countryOfDestination: regexQuery }
+                ]
+            };
         }
 
-        const exportData = await ExportData.find({
-            $or: orQuery
-        }).sort({ sbDate: -1 });
+        // Apply secondary filter if provided
+        if (secondaryField && secondaryValue) {
+            if (secondaryField === "ritcCode") {
+                const ritcCode = Number(secondaryValue);
+                if (!isNaN(ritcCode)) {
+                    query[secondaryField] = ritcCode;
+                }
+            } else {
+                query[secondaryField] = { $regex: secondaryValue, $options: "i" };
+            }
+        }
 
-        res.json(exportData);
+        // Find the total count of matching documents
+        const totalCount = await ExportData.countDocuments(query);
+
+        // Find data with pagination
+        const paginatedResults = await ExportData.find(query)
+            .sort({ sbDate: -1 })
+            .skip(skip)
+            .limit(Number(limit))
+            .exec();
+        console.log(totalCount);
+        // Send response with total count and paginated results
+        res.json(paginatedResults);
     } catch (e) {
-        console.error(e.message);
-        res.status(500).json({ error: "Internal server error" });
+        res.status(500).json({ error: e.message });
     }
 });
+
+
+
+
+
+// exportRouter.get("/api/exports/search", async (req, res) => {
+//     try {
+//         const searchQuery = req.query.q;
+//         if (!searchQuery) {
+//             return res.status(400).json({ error: "Query parameter 'q' is required" });
+//         }
+
+//         const regexQuery = { $regex: searchQuery, $options: "i" };
+
+//         // Determine if the search query can be converted to a number
+//         const ritcCode = !isNaN(searchQuery) ? Number(searchQuery) : null;
+
+//         // Build the $or array dynamically
+//         const orQuery = [
+//             { exporterName: regexQuery },
+//             { countryOfDestination: regexQuery },
+//             { itemDesc: regexQuery },
+//             { portOfDischarge: regexQuery },
+//             { currency: regexQuery },
+//         ];
+
+//         // Add ritcCode query only if it's a valid number
+//         if (ritcCode !== null) {
+//             orQuery.push({ ritcCode: ritcCode });
+//         }
+
+//         const exportData = await ExportData.find({
+//             $or: orQuery
+//         }).sort({ sbDate: -1 });
+
+//         res.json(exportData);
+//     } catch (e) {
+//         console.error(e.message);
+//         res.status(500).json({ error: "Internal server error" });
+//     }
+// });
 
 exportRouter.get("/api/exports/search-page", async (req, res) => {
     try {
@@ -460,30 +527,35 @@ exportRouter.get("/api/exports/search-page", async (req, res) => {
 });
 
 
-
-
 exportRouter.get("/api/exports/by-name-page", async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = 15;
         const skip = (page - 1) * limit;
 
-        const exportData = await ExportData
-            .find({ exporterName: { $regex: req.query.exporterName, $options: "i" } }).sort({ sbDate: -1 })
-            .skip(skip)
-            .limit(limit);
+        const query = { exporterName: { $regex: req.query.exporterName, $options: "i" } };
+        const totalDocuments = await ExportData.countDocuments(query);
+        const exportData = await ExportData.find(query).sort({ sbDate: -1 }).skip(skip).limit(limit);
 
+        console.log("Page:", page, "Skip:", skip, "Limit:", limit, "Total Documents:", totalDocuments, "Fetched Data Length:", exportData.length);
         res.json(exportData);
     } catch (e) {
+        console.error(e);
         res.status(500).json({ error: e.message });
     }
 });
 
+
 exportRouter.get("/api/exports/by-name", async (req, res) => {
     try {
-        const exportData = await ExportData.find({ exporterName: { $regex: req.query.exporterName, $options: "i" } }).sort({ sbDate: -1 }).limit(2000);
+        const query = { exporterName: { $regex: req.query.exporterName, $options: "i" } };
+        const totalDocuments = await ExportData.countDocuments(query);
+        const exportData = await ExportData.find(query).sort({ sbDate: -1 }).limit(500);
+
+        console.log("Total Documents:", totalDocuments, "Fetched Data Length:", exportData.length);
         res.json(exportData);
     } catch (e) {
+        console.error(e);
         res.status(500).json({ error: e.message });
     }
 });
@@ -575,7 +647,7 @@ exportRouter.get("/api/exports/by-ritcCode", async (req, res) => {
         }
 
         // Find export data with the specified ritcCode
-        const exportData = await ExportData.find({ ritcCode: ritcCode }).sort({ sbDate: -1 }).limit(2000);
+        const exportData = await ExportData.find({ ritcCode: ritcCode }).sort({ sbDate: -1 });
         res.json(exportData);
     } catch (e) {
         res.status(500).json({ error: e.message });
