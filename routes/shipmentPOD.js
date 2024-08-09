@@ -4,7 +4,7 @@ const shipmentPODRouter = express.Router();
 
 // POST endpoint to add new shipment data
 shipmentPODRouter.post('/api/shipmentPOD', (req, res) => {
-    const { pod, monthWiseShipments, fetchedData, topExportContinents } = req.body;
+    const { pod, monthWiseShipments, chapterCodeCounts, fetchedData, topExportContinents } = req.body;
 
     ShipmentPOD.findOne({ pod })
         .then(existingShipment => {
@@ -15,6 +15,7 @@ shipmentPODRouter.post('/api/shipmentPOD', (req, res) => {
             const newShipment = new ShipmentPOD({
                 pod,
                 monthWiseShipments,
+                chapterCodeCounts,
                 fetchedData,
                 topExportContinents,
             });
@@ -58,11 +59,11 @@ shipmentPODRouter.get('/api/shipmentPOD/:pod', (req, res) => {
 // PUT endpoint to update shipment data by POD
 shipmentPODRouter.put('/api/shipmentPOD/:pod', (req, res) => {
     const pod = req.params.pod;
-    const { monthWiseShipments, fetchedData, topExportContinents } = req.body;
+    const { monthWiseShipments, chapterCodeCounts, fetchedData, topExportContinents } = req.body;
 
     ShipmentPOD.findOneAndUpdate(
         { pod },
-        { monthWiseShipments, fetchedData, topExportContinents },
+        { monthWiseShipments, chapterCodeCounts, fetchedData, topExportContinents },
         { new: true, runValidators: true }
     )
         .then(updatedShipment => {

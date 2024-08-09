@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
-const shipmentSchema = new mongoose.Schema({
-    country: { type: String, required: true },
+const shipmentItemSchema = new mongoose.Schema({
+    itemDesc: { type: String, required: true },  // Using itemDesc instead of exporterName
     monthWiseShipments: [
         {
             month: { type: String, required: true },
@@ -9,22 +9,15 @@ const shipmentSchema = new mongoose.Schema({
         }
     ],
     fetchedData: { type: Number, required: true },
-    topExportPODs: [
+    topExportContinents: [
         {
-            pod: { type: String, required: true },
+            continent: { type: String, required: true },
             count: { type: Number, required: true },
             percentage: { type: Number, required: true },
-        }
+        },
     ],
-    chapterCodeCounts: {
-        type: Map,
-        of: {
-            type: Map,
-            of: Number
-        }
-    }
 });
 
-const Shipment = mongoose.model('Shipment', shipmentSchema);
+const ShipmentItem = mongoose.model('ShipmentItem', shipmentItemSchema);
 
-module.exports = Shipment;
+module.exports = ShipmentItem;

@@ -92,29 +92,31 @@ exportRouter.get("/api/exports/sorted", async (req, res) => {
     }
 });
 
-exportRouter.get('/api/unique-exporters', async (req, res) => {
+// Assuming you're using Express and have set up an exportRouter
+exportRouter.get('/api/unique-ports-of-discharge', async (req, res) => {
     try {
-        // Aggregation pipeline to get unique exporter names
-        const uniqueExporters = await ExportData.aggregate([
+        // Aggregation pipeline to get unique ports of discharge
+        const uniquePortsOfDischarge = await ShipmentPOD.aggregate([
             {
                 $group: {
-                    _id: "$exporterName"
+                    _id: "$pod"
                 }
             },
             {
                 $project: {
                     _id: 0,
-                    exporterName: "$_id"
+                    portOfDischarge: "$_id"
                 }
             }
         ]);
 
-        res.status(200).json(uniqueExporters);
+        res.status(200).json(uniquePortsOfDischarge);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server Error' });
     }
 });
+
 
 
 exportRouter.get('/api/unique-pods-not-in-shipment', async (req, res) => {

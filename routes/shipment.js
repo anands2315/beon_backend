@@ -2,56 +2,57 @@ const express = require("express");
 const Shipment = require("../models/shipment");
 const shipmentRouter = express.Router();
 
+// Route to create or update shipment data
+shipmentRouter.post('/api/shipments', async (req, res) => {
+    const { country, monthWiseShipments, fetchedData, topExportPODs, chapterCodeCounts } = req.body;
 
-shipmentRouter.post('/api/shipments', (req, res) => {
-    const { country, monthWiseShipments, fetchedData, topExportPODs } = req.body;
+    try {
+        const existingShipment = await Shipment.findOne({ country });
 
-    Shipment.findOne({ country })
-        .then(existingShipment => {
-            if (existingShipment) {
-                return res.status(400).send({ error: 'Data for this country already exists.' });
-            }
-
+        if (existingShipment) {
+            // If shipment data already exists, return a message
+            return res.status(400).send({ message: 'Data for this country already exists.', data: existingShipment });
+        } else {
+            // Create new shipment
             const newShipment = new Shipment({
                 country,
                 monthWiseShipments,
                 fetchedData,
                 topExportPODs,
+                chapterCodeCounts
             });
-
-            return newShipment.save();
-        })
-        .then(doc => {
-            if (doc) {
-                res.status(201).send(doc);
-            }
-        })
-        .catch(err => {
-            res.status(500).send({ error: err.message });
-        });
+            const savedShipment = await newShipment.save();
+            return res.status(201).send(savedShipment);
+        }
+    } catch (err) {
+        res.status(500).send({ error: err.message });
+    }
 });
 
-shipmentRouter.get('/api/shipments', (req, res) => {
-
-    Shipment.find({})
-        .then(docs => {
-            res.status(200).send(docs);
-        })
-        .catch(err => {
-            res.status(500).send({ error: err.message });
-        });
+// Route to get all shipment data
+shipmentRouter.get('/api/shipments', async (req, res) => {
+    try {
+        const shipments = await Shipment.find({});
+        res.status(200).send(shipments);
+    } catch (err) {
+        res.status(500).send({ error: err.message });
+    }
 });
 
-shipmentRouter.get('/api/shipments/:country', (req, res) => {
+// Route to get shipment data for a specific country
+shipmentRouter.get('/api/shipments/:country', async (req, res) => {
     const country = req.params.country;
 
-    Shipment.find({ country: { $regex: country, $options: "i" } })
-        .then(docs => {
-            res.status(200).send(docs);
-        })
-        .catch(err => {
-            res.status(500).send({ error: err.message });
-        });
+    try {
+        const shipment = await Shipment.findOne({ country: { $regex: country, $options: "i" } });
+        if (shipment) {
+            res.status(200).send(shipment);
+        } else {
+            res.status(404).send({ message: 'Shipment data not found for the specified country.' });
+        }
+    } catch (err) {
+        res.status(500).send({ error: err.message });
+    }
 });
 
 module.exports = shipmentRouter;
