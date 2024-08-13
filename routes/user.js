@@ -268,18 +268,29 @@ userRouter.post('/api/addUser', async (req, res) => {
     try {
         const { name, email, password, phoneNo, userId } = req.body;
 
+        // Check if OTP is verified
+        const otpRecord = await Otp.findOne({ email });
+
+        if (!otpRecord || !otpRecord.otpVerified) {
+            return res.status(400).json({ msg: "Email not verified. Please verify your email before adding a user." });
+        }
+
+        // Find the main user
         const mainUser = await User.findById(userId);
         if (!mainUser) {
             return res.status(404).json({ msg: "Main user not found!" });
         }
 
+        // Check if the user already exists
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            return res.status(400).json({ msg: "User with same email already exists!" });
+            return res.status(400).json({ msg: "User with the same email already exists!" });
         }
 
+        // Hash the password
         const hashedPassword = await bcryptjs.hash(password, 8);
 
+        // Create the added user
         let addedUser = new User({
             name,
             email,
@@ -292,13 +303,18 @@ userRouter.post('/api/addUser', async (req, res) => {
 
         addedUser = await addedUser.save();
 
+        // Update the main user with the added user's ID
         await User.findByIdAndUpdate(userId, { $push: { addedUsers: addedUser._id } });
+
+        // Delete the OTP record after verification
+        await Otp.deleteOne({ email });
 
         res.json(addedUser);
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
+
 
 userRouter.get("/api/addUser", async (req, res) => {
     try {

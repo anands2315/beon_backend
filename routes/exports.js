@@ -95,27 +95,32 @@ exportRouter.get("/api/exports/sorted", async (req, res) => {
 // Assuming you're using Express and have set up an exportRouter
 exportRouter.get('/api/unique-ports-of-discharge', async (req, res) => {
     try {
-        // Aggregation pipeline to get unique ports of discharge
+        // Aggregation pipeline to get unique ports of discharge as an array of strings
         const uniquePortsOfDischarge = await ShipmentPOD.aggregate([
             {
                 $group: {
-                    _id: "$pod"
+                    _id: null, // Group by null to get a single array
+                    ports: { $addToSet: "$pod" } // Collect unique ports into an array
                 }
             },
             {
                 $project: {
-                    _id: 0,
-                    portOfDischarge: "$_id"
+                    _id: 0, // Remove the _id field
+                    ports: 1 // Keep only the ports array
                 }
             }
         ]);
 
-        res.status(200).json(uniquePortsOfDischarge);
+        // Extract the array from the aggregation result
+        const portsArray = uniquePortsOfDischarge.length > 0 ? uniquePortsOfDischarge[0].ports : [];
+
+        res.status(200).json(portsArray);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server Error' });
     }
 });
+
 
 
 
@@ -384,7 +389,7 @@ exportRouter.get("/api/exports", async (req, res) => {
 
 exportRouter.get("/api/exports/search", async (req, res) => {
     try {
-        const { field, value, secondaryField, secondaryValue, page = 1, limit = 15 } = req.query;
+        const { field, value, secondaryField, secondaryValue, page = 1, limit = 30 } = req.query;
         const skip = (page - 1) * limit;
 
         if (!value) {
@@ -575,7 +580,7 @@ exportRouter.get("/api/exports/by-country", async (req, res) => {
 exportRouter.get("/api/exports/by-country-page", async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
-        const limit = 15;
+        const limit = 30;
         const skip = (page - 1) * limit;
 
         const exportData = await ExportData
