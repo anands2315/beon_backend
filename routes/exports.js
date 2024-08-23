@@ -50,7 +50,12 @@ exportRouter.get('/api/topExporter', async (req, res) => {
     }
 });
 
-exportRouter.get('/api/unique-values', auth, async (req, res) => {
+
+
+
+
+// Assuming you're using Express and have set up an exportRouter
+exportRouter.get('/api/unique-values', async (req, res) => {
     try {
         const field = req.query.field;
 
@@ -63,22 +68,22 @@ exportRouter.get('/api/unique-values', auth, async (req, res) => {
         const uniqueValues = await ExportData.aggregate([
             {
                 $group: {
-                    _id: null, // Group by null to get a single array
-                    ports: { $addToSet: "$pod" } // Collect unique ports into an array
+                    _id: null,
+                    values: { $addToSet: `$${field}` }
                 }
             },
             {
                 $project: {
-                    _id: 0, // Remove the _id field
-                    ports: 1 // Keep only the ports array
+                    _id: 0,
+                    values: 1
                 }
             }
         ]);
 
         // Extract the array from the aggregation result
-        const portsArray = uniquePortsOfDischarge.length > 0 ? uniquePortsOfDischarge[0].ports : [];
+        const valuesArray = uniqueValues.length > 0 ? uniqueValues[0].values : [];
 
-        res.status(200).json(portsArray);
+        res.status(200).json({ field, values: valuesArray });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server Error' });
