@@ -50,7 +50,7 @@ exportRouter.get('/api/topExporter', async (req, res) => {
     }
 });
 
-exportRouter.get('/api/unique-values', auth,async (req, res) => {
+exportRouter.get('/api/unique-values', auth, async (req, res) => {
     try {
         const field = req.query.field;
 
@@ -63,28 +63,27 @@ exportRouter.get('/api/unique-values', auth,async (req, res) => {
         const uniqueValues = await ExportData.aggregate([
             {
                 $group: {
-                    _id: null,
-                    values: { $addToSet: `$${field}` }
+                    _id: null, // Group by null to get a single array
+                    ports: { $addToSet: "$pod" } // Collect unique ports into an array
                 }
             },
             {
                 $project: {
-                    _id: 0,
-                    values: 1
+                    _id: 0, // Remove the _id field
+                    ports: 1 // Keep only the ports array
                 }
             }
         ]);
 
         // Extract the array from the aggregation result
-        const valuesArray = uniqueValues.length > 0 ? uniqueValues[0].values : [];
+        const portsArray = uniquePortsOfDischarge.length > 0 ? uniquePortsOfDischarge[0].ports : [];
 
-        res.status(200).json({ field, values: valuesArray });
+        res.status(200).json(portsArray);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server Error' });
     }
 });
-
 
 
 
@@ -124,7 +123,7 @@ exportRouter.get('/api/unique-pods-not-in-shipment', async (req, res) => {
     }
 });
 
-exportRouter.post('/api/aggregate-chapter-code-data',auth, async (req, res) => {
+exportRouter.post('/api/aggregate-chapter-code-data', auth, async (req, res) => {
     try {
         await ExportData.aggregate([
             {
@@ -184,7 +183,7 @@ exportRouter.post('/api/aggregate-chapter-code-data',auth, async (req, res) => {
 });
 
 
-exportRouter.get('/api/chapter-code-data/:chapterCode',auth, async (req, res) => {
+exportRouter.get('/api/chapter-code-data/:chapterCode', auth, async (req, res) => {
     try {
         const { chapterCode } = req.params;
 
@@ -202,7 +201,7 @@ exportRouter.get('/api/chapter-code-data/:chapterCode',auth, async (req, res) =>
     }
 });
 
-exportRouter.get("/api/exports",auth, async (req, res) => {
+exportRouter.get("/api/exports", auth, async (req, res) => {
     try {
         const limit = parseInt(req.query.limit, 10) || null;
         let exportData;
@@ -324,7 +323,7 @@ exportRouter.get("/api/exports/search", auth, async (req, res) => {
 //     }
 // });
 
-exportRouter.get("/api/exports/search-page",auth, async (req, res) => {
+exportRouter.get("/api/exports/search-page", auth, async (req, res) => {
     try {
         const searchQuery = req.query.q;
         const page = parseInt(req.query.page) || 1;
@@ -366,7 +365,7 @@ exportRouter.get("/api/exports/search-page",auth, async (req, res) => {
 });
 
 
-exportRouter.get("/api/exports/by-name-page", auth,async (req, res) => {
+exportRouter.get("/api/exports/by-name-page", auth, async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = 15;
@@ -385,7 +384,7 @@ exportRouter.get("/api/exports/by-name-page", auth,async (req, res) => {
 });
 
 
-exportRouter.get("/api/exports/by-name", auth,async (req, res) => {
+exportRouter.get("/api/exports/by-name", auth, async (req, res) => {
     try {
         const query = { exporterName: { $regex: req.query.exporterName, $options: "i" } };
         const totalDocuments = await ExportData.countDocuments(query);
@@ -400,7 +399,7 @@ exportRouter.get("/api/exports/by-name", auth,async (req, res) => {
 });
 
 
-exportRouter.get("/api/exports/by-country", auth,async (req, res) => {
+exportRouter.get("/api/exports/by-country", auth, async (req, res) => {
     try {
         const exportData = await ExportData.find({ countryOfDestination: { $regex: req.query.countryOfDestination, $options: "i" } }).sort({ sbDate: -1 });
         res.json(exportData);
@@ -409,7 +408,7 @@ exportRouter.get("/api/exports/by-country", auth,async (req, res) => {
     }
 });
 
-exportRouter.get("/api/exports/by-country-page", auth,async (req, res) => {
+exportRouter.get("/api/exports/by-country-page", auth, async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = 30;
@@ -427,7 +426,7 @@ exportRouter.get("/api/exports/by-country-page", auth,async (req, res) => {
 });
 
 
-exportRouter.get("/api/exports/by-itemDesc", auth,async (req, res) => {
+exportRouter.get("/api/exports/by-itemDesc", auth, async (req, res) => {
     try {
         const exportData = await ExportData.find({ itemDesc: { $regex: req.query.itemDesc, $options: "i" } }).sort({ sbDate: -1 });
         res.json(exportData);
@@ -436,7 +435,7 @@ exportRouter.get("/api/exports/by-itemDesc", auth,async (req, res) => {
     }
 });
 
-exportRouter.get("/api/exports/by-itemDesc-page", auth,async (req, res) => {
+exportRouter.get("/api/exports/by-itemDesc-page", auth, async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = 15;
@@ -453,7 +452,7 @@ exportRouter.get("/api/exports/by-itemDesc-page", auth,async (req, res) => {
     }
 });
 
-exportRouter.get("/api/exports/by-iec", auth,async (req, res) => {
+exportRouter.get("/api/exports/by-iec", auth, async (req, res) => {
     try {
         const { iec, limit } = req.query;
 
@@ -476,7 +475,7 @@ exportRouter.get("/api/exports/by-iec", auth,async (req, res) => {
 });
 
 
-exportRouter.get("/api/exports/by-ritcCode", auth,async (req, res) => {
+exportRouter.get("/api/exports/by-ritcCode", auth, async (req, res) => {
     try {
         const ritcCode = Number(req.query.ritcCode);
 
@@ -493,7 +492,7 @@ exportRouter.get("/api/exports/by-ritcCode", auth,async (req, res) => {
     }
 });
 
-exportRouter.get("/api/exports/by-ritcCode-page", auth,async (req, res) => {
+exportRouter.get("/api/exports/by-ritcCode-page", auth, async (req, res) => {
     try {
         const ritcCode = Number(req.query.ritcCode);
         const page = parseInt(req.query.page) || 1;
@@ -519,7 +518,7 @@ exportRouter.get("/api/exports/by-ritcCode-page", auth,async (req, res) => {
 
 
 
-exportRouter.get("/api/exports/by-portOfDischarge", auth,async (req, res) => {
+exportRouter.get("/api/exports/by-portOfDischarge", auth, async (req, res) => {
     try {
         const exportData = await ExportData.find({ portOfDischarge: { $regex: req.query.portOfDischarge, $options: "i" } }).sort({ sbDate: -1 });
         res.json(exportData);
@@ -528,7 +527,7 @@ exportRouter.get("/api/exports/by-portOfDischarge", auth,async (req, res) => {
     }
 });
 
-exportRouter.get("/api/exports/by-portOfDischarge-page", auth,async (req, res) => {
+exportRouter.get("/api/exports/by-portOfDischarge-page", auth, async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = 15;
@@ -547,7 +546,7 @@ exportRouter.get("/api/exports/by-portOfDischarge-page", auth,async (req, res) =
 
 
 
-exportRouter.get("/api/exports/by-currency", auth,async (req, res) => {
+exportRouter.get("/api/exports/by-currency", auth, async (req, res) => {
     try {
         const exportData = await ExportData.find({ currency: { $regex: req.query.currency, $options: "i" } }).sort({ sbDate: -1 });
         res.json(exportData);
@@ -556,7 +555,7 @@ exportRouter.get("/api/exports/by-currency", auth,async (req, res) => {
     }
 });
 
-exportRouter.get("/api/exports/by-currency-page", auth,async (req, res) => {
+exportRouter.get("/api/exports/by-currency-page", auth, async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = 15;
@@ -574,7 +573,7 @@ exportRouter.get("/api/exports/by-currency-page", auth,async (req, res) => {
 });
 
 
-exportRouter.get("/api/exports/:id", auth,async (req, res) => {
+exportRouter.get("/api/exports/:id", auth, async (req, res) => {
     try {
         const exportData = await ExportData.findById(req.params.id)
         res.json(exportData);
@@ -585,7 +584,7 @@ exportRouter.get("/api/exports/:id", auth,async (req, res) => {
 
 
 
-exportRouter.patch("/api/exports/:id", auth,async (req, res) => {
+exportRouter.patch("/api/exports/:id", auth, async (req, res) => {
     try {
         const { id } = req.params;
         const update = req.body;
@@ -603,7 +602,7 @@ exportRouter.patch("/api/exports/:id", auth,async (req, res) => {
 });
 
 
-exportRouter.delete("/api/exports/:id", auth,async (req, res) => {
+exportRouter.delete("/api/exports/:id", auth, async (req, res) => {
     try {
         const { id } = req.params;
 
