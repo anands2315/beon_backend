@@ -1,5 +1,6 @@
 const express = require('express');
 const ShipmentName = require('../models/shipmentName');
+const auth = require('../middleware/auth');
 const shipmentNameRouter = express.Router();
 
 // Calculate fetchedData (total shipment count)
@@ -8,7 +9,7 @@ const calculateFetchedData = (monthWiseShipments) => {
 };
 
 // POST endpoint to add new shipment data
-shipmentNameRouter.post('/api/shipmentName', (req, res) => {
+shipmentNameRouter.post('/api/shipmentName', auth,(req, res) => {
     const { exporterName, monthWiseShipments, topExportContinents } = req.body;
     const fetchedData = calculateFetchedData(monthWiseShipments);
 
@@ -38,7 +39,7 @@ shipmentNameRouter.post('/api/shipmentName', (req, res) => {
 });
 
 // GET endpoint to retrieve all shipment data
-shipmentNameRouter.get('/api/shipmentName', (req, res) => {
+shipmentNameRouter.get('/api/shipmentName',auth, (req, res) => {
     ShipmentName.find({})
         .then(docs => {
             res.status(200).send(docs);
@@ -49,7 +50,7 @@ shipmentNameRouter.get('/api/shipmentName', (req, res) => {
 });
 
 // GET endpoint to retrieve shipment data by exporterName
-shipmentNameRouter.get('/api/shipmentName/:exporterName', (req, res) => {
+shipmentNameRouter.get('/api/shipmentName/:exporterName',auth, (req, res) => {
     const exporterName = req.params.exporterName;
 
     ShipmentName.findOne({ exporterName })
@@ -65,7 +66,7 @@ shipmentNameRouter.get('/api/shipmentName/:exporterName', (req, res) => {
 });
 
 // PUT endpoint to update shipment data by exporterName
-shipmentNameRouter.put('/api/shipmentName/:exporterName', (req, res) => {
+shipmentNameRouter.put('/api/shipmentName/:exporterName',auth, (req, res) => {
     const exporterName = req.params.exporterName;
     const { monthWiseShipments, topExportContinents } = req.body;
     const fetchedData = calculateFetchedData(monthWiseShipments);
@@ -87,7 +88,7 @@ shipmentNameRouter.put('/api/shipmentName/:exporterName', (req, res) => {
 });
 
 // DELETE endpoint to remove shipment data by exporterName
-shipmentNameRouter.delete('/api/shipmentName/:exporterName', (req, res) => {
+shipmentNameRouter.delete('/api/shipmentName/:exporterName', auth,(req, res) => {
     const exporterName = req.params.exporterName;
 
     ShipmentName.findOneAndDelete({ exporterName })

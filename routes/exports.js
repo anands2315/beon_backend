@@ -3,6 +3,7 @@ const ExportData = require('../models/exports');
 const ShipmentPOD = require('../models/shipmentPOD');
 const TopSchema = require('../models/topExporters');
 const chaptercodedatas = require('../models/chapterCode');
+const auth = require('../middleware/auth');
 const exportRouter = express.Router();
 
 
@@ -49,72 +50,35 @@ exportRouter.get('/api/topExporter', async (req, res) => {
     }
 });
 
-exportRouter.get("/api/exports/sorted", async (req, res) => {
+exportRouter.get('/api/unique-values', auth,async (req, res) => {
     try {
-        const limit = parseInt(req.query.limit);
+        const field = req.query.field;
 
-        // Fetch export data based on limit
-        const exportData = isNaN(limit)
-            ? await ExportData.find().exec()
-            : await ExportData.find().limit(limit).exec();
+        // Check if the field is provided
+        if (!field) {
+            return res.status(400).json({ message: 'Field query parameter is required' });
+        }
 
-        const exporterCounts = {};
-        const countryCounts = {};
-        const portCounts = {};
-
-        exportData.forEach((data) => {
-            const { exporterName, countryOfDestination, portOfDischarge } = data;
-
-            if (exporterName) {
-                exporterCounts[exporterName] = (exporterCounts[exporterName] || 0) + 1;
-            }
-
-            if (countryOfDestination) {
-                countryCounts[countryOfDestination] = (countryCounts[countryOfDestination] || 0) + 1;
-            }
-
-            if (portOfDischarge) {
-                portCounts[portOfDischarge] = (portCounts[portOfDischarge] || 0) + 1;
-            }
-        });
-
-        const sortedExporters = Object.entries(exporterCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-        const sortedCountries = Object.entries(countryCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-        const sortedPorts = Object.entries(portCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-
-        res.json({
-            topExporters: sortedExporters.map(([key, value]) => ({ exporterName: key, count: value })),
-            topCountries: sortedCountries.map(([key, value]) => ({ countryOfDestination: key, count: value })),
-            topPorts: sortedPorts.map(([key, value]) => ({ portOfDischarge: key, count: value })),
-        });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
-});
-
-// Assuming you're using Express and have set up an exportRouter
-exportRouter.get('/api/unique-ports-of-discharge', async (req, res) => {
-    try {
-        // Aggregation pipeline to get unique ports of discharge as an array of strings
-        const uniquePortsOfDischarge = await ShipmentPOD.aggregate([
+        // Create an aggregation pipeline based on the provided field
+        const uniqueValues = await ExportData.aggregate([
             {
                 $group: {
-                    _id: null, // Group by null to get a single array
-                    ports: { $addToSet: "$pod" } // Collect unique ports into an array
+                    _id: null,
+                    values: { $addToSet: `$${field}` }
                 }
             },
             {
                 $project: {
-                    _id: 0, // Remove the _id field
-                    ports: 1 // Keep only the ports array
+                    _id: 0,
+                    values: 1
                 }
             }
         ]);
 
         // Extract the array from the aggregation result
-        const portsArray = uniquePortsOfDischarge.length > 0 ? uniquePortsOfDischarge[0].ports : [];
+        const valuesArray = uniqueValues.length > 0 ? uniqueValues[0].values : [];
 
-        res.status(200).json(portsArray);
+        res.status(200).json({ field, values: valuesArray });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server Error' });
@@ -160,7 +124,7 @@ exportRouter.get('/api/unique-pods-not-in-shipment', async (req, res) => {
     }
 });
 
-exportRouter.post('/api/aggregate-chapter-code-data', async (req, res) => {
+exportRouter.post('/api/aggregate-chapter-code-data',auth, async (req, res) => {
     try {
         await ExportData.aggregate([
             {
@@ -219,140 +183,8 @@ exportRouter.post('/api/aggregate-chapter-code-data', async (req, res) => {
     }
 });
 
-exportRouter.post('/api/aggregate-port-data', async (req, res) => {
-    try {
-        const aggregatedData = await ExportData.aggregate([
-            {
-                $addFields: {
-                    chapterCode: { $substr: ["$ritcCode", 0, 2] }, // Extract chapter code from ritcCode
-                    monthYear: {
-                        $concat: [
-                            { $substr: ["$sbDate", 3, 2] }, "-", { $substr: ["$sbDate", 6, 4] }
-                        ]
-                    } // Create monthYear field
-                }
-            },
-            {
-                $group: {
-                    _id: {
-                        portOfDischarge: "$portOfDischarge",
-                        chapterCode: "$chapterCode",
-                        monthYear: "$monthYear"
-                    },
-                    shipmentCount: { $sum: 1 } // Count the number of documents for each chapterCode and monthYear
-                }
-            },
-            {
-                $group: {
-                    _id: {
-                        portOfDischarge: "$_id.portOfDischarge",
-                        chapterCode: "$_id.chapterCode"
-                    },
-                    shipmentsByMonth: {
-                        $push: {
-                            monthYear: "$_id.monthYear",
-                            shipmentCount: "$shipmentCount"
-                        }
-                    },
-                    totalShipments: { $sum: "$shipmentCount" } // Total number of shipments for the chapterCode
-                }
-            },
-            {
-                $group: {
-                    _id: "$_id.portOfDischarge",
-                    chapterCodes: {
-                        $push: {
-                            chapterCode: "$_id.chapterCode",
-                            shipmentsByMonth: {
-                                $sortArray: {
-                                    input: "$shipmentsByMonth",
-                                    sortBy: { monthYear: 1 }
-                                }
-                            },
-                            totalShipments: "$totalShipments"
-                        }
-                    },
-                    totalShipments: { $sum: "$totalShipments" },
-                    fetchedData: { $sum: "$totalShipments" } // Assuming fetchedData is the total number of shipments
-                }
-            },
-            {
-                $lookup: {
-                    from: "exportdata",
-                    localField: "_id",
-                    foreignField: "portOfDischarge",
-                    as: "exportData"
-                }
-            },
-            {
-                $unwind: "$exportData"
-            },
-            {
-                $group: {
-                    _id: {
-                        portOfDischarge: "$_id",
-                        continent: "$exportData.countryOfDestination"
-                    },
-                    count: { $sum: 1 }
-                }
-            },
-            {
-                $group: {
-                    _id: "$_id.portOfDischarge",
-                    topExportContinents: {
-                        $push: {
-                            continent: "$_id.continent",
-                            count: "$count"
-                        }
-                    },
-                    totalShipments: { $first: "$totalShipments" },
-                    chapterCodes: { $first: "$chapterCodes" },
-                    fetchedData: { $first: "$fetchedData" }
-                }
-            },
-            {
-                $addFields: {
-                    "topExportContinents.percentage": {
-                        $map: {
-                            input: "$topExportContinents",
-                            as: "continent",
-                            in: {
-                                $multiply: [
-                                    { $divide: ["$$continent.count", "$totalShipments"] },
-                                    100
-                                ]
-                            }
-                        }
-                    }
-                }
-            },
-            {
-                $project: {
-                    _id: 0,
-                    pod: "$_id",
-                    chapterCodes: 1,
-                    totalShipments: 1,
-                    fetchedData: 1,
-                    topExportContinents: 1
-                }
-            },
-            {
-                $out: "shipmentpods" // Store the result in a new collection 'shipmentpods'
-            }
-        ]);
 
-        console.log('Aggregated Data:', JSON.stringify(aggregatedData, null, 2));
-
-        res.status(200).json({ message: 'Aggregation and storing completed successfully.', data: aggregatedData });
-    } catch (err) {
-        console.error('Error during aggregation and storing:', err);
-        res.status(500).json({ error: 'An error occurred during aggregation.' });
-    }
-});
-
-
-
-exportRouter.get('/api/chapter-code-data/:chapterCode', async (req, res) => {
+exportRouter.get('/api/chapter-code-data/:chapterCode',auth, async (req, res) => {
     try {
         const { chapterCode } = req.params;
 
@@ -370,7 +202,7 @@ exportRouter.get('/api/chapter-code-data/:chapterCode', async (req, res) => {
     }
 });
 
-exportRouter.get("/api/exports", async (req, res) => {
+exportRouter.get("/api/exports",auth, async (req, res) => {
     try {
         const limit = parseInt(req.query.limit, 10) || null;
         let exportData;
@@ -387,7 +219,7 @@ exportRouter.get("/api/exports", async (req, res) => {
     }
 });
 
-exportRouter.get("/api/exports/search", async (req, res) => {
+exportRouter.get("/api/exports/search", auth, async (req, res) => {
     try {
         const { field, value, secondaryField, secondaryValue, page = 1, limit = 30 } = req.query;
         const skip = (page - 1) * limit;
@@ -492,7 +324,7 @@ exportRouter.get("/api/exports/search", async (req, res) => {
 //     }
 // });
 
-exportRouter.get("/api/exports/search-page", async (req, res) => {
+exportRouter.get("/api/exports/search-page",auth, async (req, res) => {
     try {
         const searchQuery = req.query.q;
         const page = parseInt(req.query.page) || 1;
@@ -534,7 +366,7 @@ exportRouter.get("/api/exports/search-page", async (req, res) => {
 });
 
 
-exportRouter.get("/api/exports/by-name-page", async (req, res) => {
+exportRouter.get("/api/exports/by-name-page", auth,async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = 15;
@@ -553,7 +385,7 @@ exportRouter.get("/api/exports/by-name-page", async (req, res) => {
 });
 
 
-exportRouter.get("/api/exports/by-name", async (req, res) => {
+exportRouter.get("/api/exports/by-name", auth,async (req, res) => {
     try {
         const query = { exporterName: { $regex: req.query.exporterName, $options: "i" } };
         const totalDocuments = await ExportData.countDocuments(query);
@@ -568,7 +400,7 @@ exportRouter.get("/api/exports/by-name", async (req, res) => {
 });
 
 
-exportRouter.get("/api/exports/by-country", async (req, res) => {
+exportRouter.get("/api/exports/by-country", auth,async (req, res) => {
     try {
         const exportData = await ExportData.find({ countryOfDestination: { $regex: req.query.countryOfDestination, $options: "i" } }).sort({ sbDate: -1 });
         res.json(exportData);
@@ -577,7 +409,7 @@ exportRouter.get("/api/exports/by-country", async (req, res) => {
     }
 });
 
-exportRouter.get("/api/exports/by-country-page", async (req, res) => {
+exportRouter.get("/api/exports/by-country-page", auth,async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = 30;
@@ -595,7 +427,7 @@ exportRouter.get("/api/exports/by-country-page", async (req, res) => {
 });
 
 
-exportRouter.get("/api/exports/by-itemDesc", async (req, res) => {
+exportRouter.get("/api/exports/by-itemDesc", auth,async (req, res) => {
     try {
         const exportData = await ExportData.find({ itemDesc: { $regex: req.query.itemDesc, $options: "i" } }).sort({ sbDate: -1 });
         res.json(exportData);
@@ -604,7 +436,7 @@ exportRouter.get("/api/exports/by-itemDesc", async (req, res) => {
     }
 });
 
-exportRouter.get("/api/exports/by-itemDesc-page", async (req, res) => {
+exportRouter.get("/api/exports/by-itemDesc-page", auth,async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = 15;
@@ -621,7 +453,7 @@ exportRouter.get("/api/exports/by-itemDesc-page", async (req, res) => {
     }
 });
 
-exportRouter.get("/api/exports/by-iec", async (req, res) => {
+exportRouter.get("/api/exports/by-iec", auth,async (req, res) => {
     try {
         const { iec, limit } = req.query;
 
@@ -644,7 +476,7 @@ exportRouter.get("/api/exports/by-iec", async (req, res) => {
 });
 
 
-exportRouter.get("/api/exports/by-ritcCode", async (req, res) => {
+exportRouter.get("/api/exports/by-ritcCode", auth,async (req, res) => {
     try {
         const ritcCode = Number(req.query.ritcCode);
 
@@ -661,7 +493,7 @@ exportRouter.get("/api/exports/by-ritcCode", async (req, res) => {
     }
 });
 
-exportRouter.get("/api/exports/by-ritcCode-page", async (req, res) => {
+exportRouter.get("/api/exports/by-ritcCode-page", auth,async (req, res) => {
     try {
         const ritcCode = Number(req.query.ritcCode);
         const page = parseInt(req.query.page) || 1;
@@ -687,7 +519,7 @@ exportRouter.get("/api/exports/by-ritcCode-page", async (req, res) => {
 
 
 
-exportRouter.get("/api/exports/by-portOfDischarge", async (req, res) => {
+exportRouter.get("/api/exports/by-portOfDischarge", auth,async (req, res) => {
     try {
         const exportData = await ExportData.find({ portOfDischarge: { $regex: req.query.portOfDischarge, $options: "i" } }).sort({ sbDate: -1 });
         res.json(exportData);
@@ -696,7 +528,7 @@ exportRouter.get("/api/exports/by-portOfDischarge", async (req, res) => {
     }
 });
 
-exportRouter.get("/api/exports/by-portOfDischarge-page", async (req, res) => {
+exportRouter.get("/api/exports/by-portOfDischarge-page", auth,async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = 15;
@@ -715,7 +547,7 @@ exportRouter.get("/api/exports/by-portOfDischarge-page", async (req, res) => {
 
 
 
-exportRouter.get("/api/exports/by-currency", async (req, res) => {
+exportRouter.get("/api/exports/by-currency", auth,async (req, res) => {
     try {
         const exportData = await ExportData.find({ currency: { $regex: req.query.currency, $options: "i" } }).sort({ sbDate: -1 });
         res.json(exportData);
@@ -724,7 +556,7 @@ exportRouter.get("/api/exports/by-currency", async (req, res) => {
     }
 });
 
-exportRouter.get("/api/exports/by-currency-page", async (req, res) => {
+exportRouter.get("/api/exports/by-currency-page", auth,async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = 15;
@@ -742,7 +574,7 @@ exportRouter.get("/api/exports/by-currency-page", async (req, res) => {
 });
 
 
-exportRouter.get("/api/exports/:id", async (req, res) => {
+exportRouter.get("/api/exports/:id", auth,async (req, res) => {
     try {
         const exportData = await ExportData.findById(req.params.id)
         res.json(exportData);
@@ -753,7 +585,7 @@ exportRouter.get("/api/exports/:id", async (req, res) => {
 
 
 
-exportRouter.patch("/api/exports/:id", async (req, res) => {
+exportRouter.patch("/api/exports/:id", auth,async (req, res) => {
     try {
         const { id } = req.params;
         const update = req.body;
@@ -771,7 +603,7 @@ exportRouter.patch("/api/exports/:id", async (req, res) => {
 });
 
 
-exportRouter.delete("/api/exports/:id", async (req, res) => {
+exportRouter.delete("/api/exports/:id", auth,async (req, res) => {
     try {
         const { id } = req.params;
 

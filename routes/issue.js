@@ -3,13 +3,14 @@ const issueRouter = express.Router();
 const Issue = require('../models/issue');
 const multer = require('multer');
 const path = require('path');
+const auth = require('../middleware/auth');
 
 const storage = multer.memoryStorage(); // Store file in memory
 const upload = multer({ storage });
 
 
 // Create a new issue
-issueRouter.post('/api/issue', upload.array('images'), async (req, res) => {
+issueRouter.post('/api/issue', auth, upload.array('images'), async (req, res) => {
     try {
         const { name, issue, resolved } = req.body;
         const images = req.files ? req.files.map(file => ({
@@ -36,7 +37,7 @@ issueRouter.post('/api/issue', upload.array('images'), async (req, res) => {
 });
 
 // Get all issues
-issueRouter.get('/api/issue', async (req, res) => {
+issueRouter.get('/api/issue', auth, async (req, res) => {
     try {
         const issues = await Issue.find();
         const formattedIssues = issues.map(issue => ({
@@ -53,7 +54,7 @@ issueRouter.get('/api/issue', async (req, res) => {
 });
 
 // Get a single issue by ID
-issueRouter.get('/api/issue/:id', async (req, res) => {
+issueRouter.get('/api/issue/:id', auth, async (req, res) => {
     try {
         const issue = await Issue.findById(req.params.id);
 
@@ -103,7 +104,7 @@ issueRouter.patch('/api/issue/:id', async (req, res) => {
 });
 
 // Delete an issue by ID
-issueRouter.delete('/api/issue/:id', async (req, res) => {
+issueRouter.delete('/api/issue/:id', auth, async (req, res) => {
     try {
         const issue = await Issue.findByIdAndDelete(req.params.id);
 

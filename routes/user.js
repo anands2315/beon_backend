@@ -2,8 +2,10 @@ const express = require('express');
 const bcryptjs = require('bcryptjs');
 const User = require("../models/user");
 const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 const Otp = require('../models/otp');
 const { sendOtpMail, sendResetPasswordMail } = require('../utils/mailer');
+const auth = require('../middleware/auth');
 const userRouter = express.Router();
 
 userRouter.post('/api/signUp', async (req, res) => {
@@ -145,7 +147,9 @@ userRouter.post('/api/signin', async (req, res) => {
             return res.status(400).json({ msg: "Incorrect password." });
         }
 
-        res.json(user._doc);
+        const token = jwt.sign({ id: user._id }, "passwordKey");
+
+        res.json({ token, ...user._doc });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -214,7 +218,7 @@ userRouter.post('/api/resetPassword/:resetToken', async (req, res) => {
     }
 });
 
-userRouter.get("/api/user", async (req, res) => {
+userRouter.get("/api/user",  async (req, res) => {
     try {
         const users = await User.find({});
         res.json(users);
@@ -264,7 +268,7 @@ userRouter.delete("/api/deleteUser/:id", async (req, res) => {
 });
 
 
-userRouter.post('/api/addUser', async (req, res) => {
+userRouter.post('/api/addUser', auth,async (req, res) => {
     try {
         const { name, email, password, phoneNo, userId } = req.body;
 
@@ -316,7 +320,7 @@ userRouter.post('/api/addUser', async (req, res) => {
 });
 
 
-userRouter.get("/api/addUser", async (req, res) => {
+userRouter.get("/api/addUser", auth,async (req, res) => {
     try {
         const addedBy = req.query.addedBy;
         const addedUsers = await User.find({ addedBy: addedBy });
@@ -326,7 +330,7 @@ userRouter.get("/api/addUser", async (req, res) => {
     }
 });
 
-userRouter.delete('/api/deleteAddedUser/:userId', async (req, res) => {
+userRouter.delete('/api/deleteAddedUser/:userId', auth,async (req, res) => {
     try {
         const { userId } = req.params;
         const { userId: mainUserId } = req.body;

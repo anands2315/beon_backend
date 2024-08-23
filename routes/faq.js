@@ -1,9 +1,10 @@
 const express = require('express');
 const FAQ = require("../models/faq");
+const auth = require('../middleware/auth');
 const faqRouter = express.Router();
 
 // GET all FAQs
-faqRouter.get('/api/faq', async (req, res) => {
+faqRouter.get('/api/faq',auth, async (req, res) => {
     try {
         const faqs = await FAQ.find();
         res.json(faqs);
@@ -13,7 +14,7 @@ faqRouter.get('/api/faq', async (req, res) => {
 });
 
 // GET a single FAQ by ID
-faqRouter.get('/api/faq/:id', async (req, res) => {
+faqRouter.get('/api/faq/:id',auth, async (req, res) => {
     try {
         const faq = await FAQ.findById(req.params.id);
         if (!faq) {
@@ -26,7 +27,7 @@ faqRouter.get('/api/faq/:id', async (req, res) => {
 });
 
 // POST a new FAQ
-faqRouter.post('/api/faq', async (req, res) => {
+faqRouter.post('/api/faq', auth,async (req, res) => {
     const faq = new FAQ({
         question: req.body.question,
         answer: req.body.answer
@@ -41,7 +42,7 @@ faqRouter.post('/api/faq', async (req, res) => {
 });
 
 // PUT (update) an existing FAQ
-faqRouter.put('/api/faq/:id', async (req, res) => {
+faqRouter.put('/api/faq/:id', auth,async (req, res) => {
     try {
         const faq = await FAQ.findById(req.params.id);
         if (!faq) {
@@ -63,7 +64,7 @@ faqRouter.put('/api/faq/:id', async (req, res) => {
 });
 
 // DELETE an FAQ
-faqRouter.delete('/api/faq/:id', async (req, res) => {
+faqRouter.delete('/api/faq/:id', auth,async (req, res) => {
     try {
         const faq = await FAQ.findByIdAndDelete(req.params.id);
 

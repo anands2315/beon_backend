@@ -1,9 +1,10 @@
 const express = require('express');
 const Favorite = require('../models/favorite');
+const auth = require('../middleware/auth');
 const router = express.Router();
 
 // Add an entry to the favorites list
-router.post('/api/favorites', async (req, res) => {
+router.post('/api/favorites', auth,async (req, res) => {
     const { userId, entryId } = req.body;
     try {
         let favorite = await Favorite.findOne({ userId });
@@ -22,7 +23,7 @@ router.post('/api/favorites', async (req, res) => {
 });
 
 // Get all favorites of a user
-router.get('/api/favorites/:userId', async (req, res) => {
+router.get('/api/favorites/:userId', auth,async (req, res) => {
     const { userId } = req.params;
     try {
         const favorite = await Favorite.findOne({ userId });
@@ -38,7 +39,7 @@ router.get('/api/favorites/:userId', async (req, res) => {
 
 
 // Check if an entry is favorited
-router.get('/api/favorites/:userId/:entryId', async (req, res) => {
+router.get('/api/favorites/:userId/:entryId', auth,async (req, res) => {
     const { userId, entryId } = req.params;
     try {
         const favorite = await Favorite.findOne({ userId });
@@ -53,7 +54,7 @@ router.get('/api/favorites/:userId/:entryId', async (req, res) => {
 });
 
 // Remove an entry from the favorites list
-router.delete('/api/favorites/:userId/:entryId', async (req, res) => {
+router.delete('/api/favorites/:userId/:entryId', auth,async (req, res) => {
     const { userId, entryId } = req.params;
     try {
         // Find the favorite document for the user

@@ -15,13 +15,14 @@ const shipmentNameRouter = require('./routes/shipmentName.js');
 const aggregationRouter = require('./routes/aggregate.js');
 const issueRouter = require('./routes/issue.js');
 const shipmentItemRouter = require('./routes/shipmentItem.js');
+const recentSearchRouter = require('./routes/recentSearch.js');
 
 
 // INITIALIZE
 const PORT = 3000;
 const app = express();
-const DB = "mongodb://benodb:benoadmin1313@3.7.3.84:27017/?authSource=test";
-// const DB = "mongodb+srv://anandsinghfuerte:beon123@cluster0.zue4qwl.mongodb.net/mydatabase?retryWrites=true&w=majority&appName=Cluster0";
+// const DB = "mongodb://benodb:benoadmin1313@3.7.3.84:27017/?authSource=test";
+const DB = "mongodb+srv://anandsinghfuerte:beon123@cluster0.zue4qwl.mongodb.net/mydatabase?retryWrites=true&w=majority&appName=Cluster0";
 
 
 // MIDDLEWARE
@@ -38,6 +39,7 @@ app.use(shipmentHSNRouter);
 app.use(shipmentNameRouter);
 app.use(issueRouter);
 app.use(shipmentItemRouter);
+app.use(recentSearchRouter);
 app.use(aggregationRouter);
 
 // CONNECT TO DATABASE

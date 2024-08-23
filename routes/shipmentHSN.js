@@ -1,9 +1,11 @@
 const express = require('express');
 const shipmentHSNRouter = express.Router();
 const ShipmentHSN = require('../models/shipmentHSN'); // Ensure the path is correct
+const auth = require('../middleware/auth');
 
 // Get all ShipmentHSN data
-shipmentHSNRouter.get('/api/shipmenthsn', async (req, res) => {
+shipmentHSNRouter.get('/api/shipmenthsn', auth,async (req, res) => {
+
     try {
         const shipmentHSNs = await ShipmentHSN.find();
         res.json(shipmentHSNs);
@@ -13,7 +15,7 @@ shipmentHSNRouter.get('/api/shipmenthsn', async (req, res) => {
 });
 
 
-shipmentHSNRouter.get('/api/shipmenthsn/:ritcCode', async (req, res) => {
+shipmentHSNRouter.get('/api/shipmenthsn/:ritcCode', auth,async (req, res) => {
     try {
         const shipmentHSN = await ShipmentHSN.find({ ritcCode: req.params.ritcCode });
         if (!shipmentHSN) return res.status(404).json({ error: 'ShipmentHSN not found' });
@@ -24,7 +26,7 @@ shipmentHSNRouter.get('/api/shipmenthsn/:ritcCode', async (req, res) => {
 });
 
 // Create a new ShipmentHSN entry
-shipmentHSNRouter.post('/api/shipmenthsn', async (req, res) => {
+shipmentHSNRouter.post('/api/shipmenthsn', auth,async (req, res) => {
     try {
         const newShipmentHSN = new ShipmentHSN(req.body);
         await newShipmentHSN.save();
@@ -35,7 +37,7 @@ shipmentHSNRouter.post('/api/shipmenthsn', async (req, res) => {
 });
 
 // Update an existing ShipmentHSN entry
-shipmentHSNRouter.put('/api/shipmenthsn/:id', async (req, res) => {
+shipmentHSNRouter.put('/api/shipmenthsn/:id', auth,async (req, res) => {
     try {
         const updatedShipmentHSN = await ShipmentHSN.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
         if (!updatedShipmentHSN) return res.status(404).json({ error: 'ShipmentHSN not found' });
@@ -46,7 +48,7 @@ shipmentHSNRouter.put('/api/shipmenthsn/:id', async (req, res) => {
 });
 
 // Delete a ShipmentHSN entry
-shipmentHSNRouter.delete('/api/shipmenthsn/:id', async (req, res) => {
+shipmentHSNRouter.delete('/api/shipmenthsn/:id', auth,async (req, res) => {
     try {
         const deletedShipmentHSN = await ShipmentHSN.findByIdAndDelete(req.params.id);
         if (!deletedShipmentHSN) return res.status(404).json({ error: 'ShipmentHSN not found' });

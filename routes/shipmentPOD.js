@@ -1,9 +1,10 @@
 const express = require("express");
 const ShipmentPOD = require("../models/shipmentPOD");
+const auth = require("../middleware/auth");
 const shipmentPODRouter = express.Router();
 
 // POST endpoint to add new shipment data
-shipmentPODRouter.post('/api/shipmentPOD', (req, res) => {
+shipmentPODRouter.post('/api/shipmentPOD', auth, (req, res) => {
     const { pod, monthWiseShipments, chapterCodeCounts, fetchedData, topExportContinents } = req.body;
 
     ShipmentPOD.findOne({ pod })
@@ -33,7 +34,7 @@ shipmentPODRouter.post('/api/shipmentPOD', (req, res) => {
 });
 
 // GET endpoint to retrieve all shipment data
-shipmentPODRouter.get('/api/shipmentPOD', (req, res) => {
+shipmentPODRouter.get('/api/shipmentPOD', auth, (req, res) => {
     ShipmentPOD.find({})
         .then(docs => {
             res.status(200).send(docs);
@@ -44,7 +45,7 @@ shipmentPODRouter.get('/api/shipmentPOD', (req, res) => {
 });
 
 // GET endpoint to retrieve shipment data by POD
-shipmentPODRouter.get('/api/shipmentPOD/:pod', (req, res) => {
+shipmentPODRouter.get('/api/shipmentPOD/:pod', auth, (req, res) => {
     const pod = req.params.pod;
 
     ShipmentPOD.find({ pod })
@@ -57,7 +58,7 @@ shipmentPODRouter.get('/api/shipmentPOD/:pod', (req, res) => {
 });
 
 // PUT endpoint to update shipment data by POD
-shipmentPODRouter.put('/api/shipmentPOD/:pod', (req, res) => {
+shipmentPODRouter.put('/api/shipmentPOD/:pod', auth, (req, res) => {
     const pod = req.params.pod;
     const { monthWiseShipments, chapterCodeCounts, fetchedData, topExportContinents } = req.body;
 
@@ -78,7 +79,7 @@ shipmentPODRouter.put('/api/shipmentPOD/:pod', (req, res) => {
 });
 
 // DELETE endpoint to remove shipment data by POD
-shipmentPODRouter.delete('/api/shipmentPOD/:pod', (req, res) => {
+shipmentPODRouter.delete('/api/shipmentPOD/:pod', auth, (req, res) => {
     const pod = req.params.pod;
 
     ShipmentPOD.findOneAndDelete({ pod })
