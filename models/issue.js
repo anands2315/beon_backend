@@ -14,14 +14,23 @@ const issueSchema = new mongoose.Schema({
         default: false,
     },
     images: [{
-        data: Buffer, // Store the image as binary data
-        contentType: String // Store the image MIME type
+        data: Buffer,
+        contentType: String,
     }],
+    comment: {
+        type: String,
+        default: '',
+    },
+    ticketNumber: {
+        type: String,
+        unique: true,
+        required: true,
+    },
 }, {
-    timestamps: true // This will add createdAt and updatedAt fields automatically
+    timestamps: true,
 });
 
-issueSchema.virtual('imagePaths').get(function() {
+issueSchema.virtual('imagePaths').get(function () {
     return this.images.map(image => `data:${image.contentType};base64,${image.data.toString('base64')}`);
 });
 

@@ -235,12 +235,14 @@ exportRouter.get("/api/exports/search", auth, async (req, res) => {
         // Build the query
         let query = {};
         if (field) {
-            if (field === "ritcCode") {
-                const ritcCode = Number(value);
-                if (isNaN(ritcCode)) {
-                    return res.status(400).json({ error: "Invalid ritcCode parameter" });
+            if (field === "ritcCode" || field === "sbNo" || field === "quantity" || field === "itemRate" || field === "fob") {
+                const numericValue = Number(value);
+                if (isNaN(numericValue)) {
+                    return res.status(400).json({ error: `Invalid ${field} parameter` });
                 }
-                query[field] = ritcCode;
+                query[field] = numericValue;
+            } else if (field === "sbDate") {
+                query[field] = value;  // Assuming sbDate is in a proper format
             } else {
                 query[field] = { $regex: value, $options: "i" };
             }
@@ -249,22 +251,31 @@ exportRouter.get("/api/exports/search", auth, async (req, res) => {
             query = {
                 $or: [
                     { exporterName: regexQuery },
+                    { consigneeName: regexQuery },
                     { portOfDischarge: regexQuery },
                     { currency: regexQuery },
-                    { ritcCode: Number(value) || { $exists: true } },
                     { itemDesc: regexQuery },
-                    { countryOfDestination: regexQuery }
+                    { countryOfDestination: regexQuery },
+                    { iec: regexQuery },
+                    { sbDate: value },  // Assuming exact match
+                    { sbNo: Number(value) || { $exists: true } },
+                    { quantity: Number(value) || { $exists: true } },
+                    { itemRate: Number(value) || { $exists: true } },
+                    { fob: Number(value) || { $exists: true } },
+                    { ritcCode: Number(value) || { $exists: true } }
                 ]
             };
         }
 
         // Apply secondary filter if provided
         if (secondaryField && secondaryValue) {
-            if (secondaryField === "ritcCode") {
-                const ritcCode = Number(secondaryValue);
-                if (!isNaN(ritcCode)) {
-                    query[secondaryField] = ritcCode;
+            if (secondaryField === "ritcCode" || secondaryField === "sbNo" || secondaryField === "quantity" || secondaryField === "itemRate" || secondaryField === "fob") {
+                const numericValue = Number(secondaryValue);
+                if (!isNaN(numericValue)) {
+                    query[secondaryField] = numericValue;
                 }
+            } else if (secondaryField === "sbDate") {
+                query[secondaryField] = secondaryValue;  // Assuming sbDate is in a proper format
             } else {
                 query[secondaryField] = { $regex: secondaryValue, $options: "i" };
             }
@@ -286,6 +297,7 @@ exportRouter.get("/api/exports/search", auth, async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 });
+
 
 
 

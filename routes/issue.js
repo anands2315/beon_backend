@@ -2,17 +2,20 @@ const express = require('express');
 const issueRouter = express.Router();
 const Issue = require('../models/issue');
 const multer = require('multer');
-const path = require('path');
 const auth = require('../middleware/auth');
+const crypto = require('crypto');
 
-const storage = multer.memoryStorage(); // Store file in memory
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
+function generateTicketNumber() {
+    return crypto.randomBytes(4).toString('hex').toUpperCase();
+}
 
 // Create a new issue
 issueRouter.post('/api/issue', auth, upload.array('images'), async (req, res) => {
     try {
-        const { name, issue, resolved } = req.body;
+        const { name, issue, resolved, comment } = req.body;
         const images = req.files ? req.files.map(file => ({
             data: file.buffer,
             contentType: file.mimetype
@@ -22,10 +25,19 @@ issueRouter.post('/api/issue', auth, upload.array('images'), async (req, res) =>
             return res.status(400).send({ error: 'Name and issue are required' });
         }
 
+        let ticketNumber;
+        let ticketExists;
+        do {
+            ticketNumber = generateTicketNumber();
+            ticketExists = await Issue.findOne({ ticketNumber });
+        } while (ticketExists);
+
         const newIssue = new Issue({
             name,
             issue,
             resolved: resolved || false,
+            comment: comment || '',
+            ticketNumber,
             images
         });
 
@@ -62,16 +74,24 @@ issueRouter.get('/api/issue/:id', auth, async (req, res) => {
             return res.status(404).send({ error: 'Issue not found' });
         }
 
-        res.status(200).send(issue);
+        const formattedIssue = {
+            ...issue._doc,
+            images: issue.images.map(image => ({
+                ...image,
+                data: image.data.toString('base64') // Convert image data to base64
+            }))
+        };
+
+        res.status(200).send(formattedIssue);
     } catch (error) {
         res.status(500).send({ error: 'Internal Server Error' });
     }
 });
 
 // Update an issue by ID
-issueRouter.patch('/api/issue/:id', async (req, res) => {
+issueRouter.patch('/api/issue/:id', auth, async (req, res) => {
     const updates = Object.keys(req.body);
-    const allowedUpdates = ['name', 'issue', 'resolved', 'images'];
+    const allowedUpdates = ['name', 'issue', 'resolved', 'images', 'comment'];
     const isValidOperation = updates.every((update) => allowedUpdates.includes(update));
 
     if (!isValidOperation) {
