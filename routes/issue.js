@@ -89,44 +89,52 @@ issueRouter.get('/api/issue/:id', auth, async (req, res) => {
 });
 
 // Update an issue by ID
-issueRouter.patch('/api/issue/:id', auth, async (req, res) => {
+issueRouter.patch('/api/issue/:id', auth, upload.array('images'), async (req, res) => {
     const updates = Object.keys(req.body);
-    const allowedUpdates = ['name', 'issue', 'resolved', 'images', 'comment'];
+    const allowedUpdates = ['name', 'issue', 'resolved', 'comment'];
     const isValidOperation = updates.every((update) => allowedUpdates.includes(update));
-
+    
     if (!isValidOperation) {
-        return res.status(400).send({ error: 'Invalid updates!' });
+      return res.status(400).send({ error: 'Invalid updates!' });
     }
-
+    
     try {
-        const issue = await Issue.findById(req.params.id);
-
-        if (!issue) {
-            return res.status(404).send({ error: 'Issue not found' });
+      const issue = await Issue.findById(req.params.id);
+      
+      if (!issue) {
+        return res.status(404).send({ error: 'Issue not found' });
+      }
+      
+      // Apply text updates
+      updates.forEach((update) => {
+        if (update !== 'images') {
+          issue[update] = req.body[update];
         }
-
-        updates.forEach((update) => {
-            if (update === 'images') {
-                issue[update] = req.body[update].map(img => ({
-                    data: Buffer.from(img.data, 'base64'),
-                    contentType: img.contentType
-                }));
-            } else {
-                issue[update] = req.body[update];
-            }
-        });
-        await issue.save();
-
-        res.status(200).send(issue);
+      });
+      
+      // Handle image updates
+      if (req.files && req.files.length > 0) {
+        // Replace the existing images with the new ones
+        issue.images = req.files.map(file => ({
+          data: file.buffer,
+          contentType: file.mimetype
+        }));
+      }
+      
+      await issue.save();
+      res.status(200).send(issue);
     } catch (error) {
-        res.status(500).send({ error: 'Internal Server Error' });
+      res.status(500).send({ error: 'Internal Server Error' });
     }
-});
+  });
+  
+  
+
 
 // Delete an issue by ID
 issueRouter.delete('/api/issue/:id', auth, async (req, res) => {
     try {
-        const issue = await Issue.findByIdAndDelete(req.params.id);
+        const issue = await Issue.findByIdAndDelete(req.params.id); y
 
         if (!issue) {
             return res.status(404).send({ error: 'Issue not found' });
