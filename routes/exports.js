@@ -10,94 +10,84 @@ const exportRouter = express.Router();
 exportRouter.get('/top-data', async (req, res) => {
     try {
         const topExporters = await ExportData.aggregate([
-            // Group by exporterName and count occurrences
             {
                 $group: {
                     _id: "$exporterName",
                     count: { $sum: 1 }
                 }
             },
-            // Sort by count in descending order
             {
                 $sort: { count: -1 }
             },
-            // Limit to top 5 exporters
             {
                 $limit: 5
             },
-            // Reformat the output
             {
                 $project: {
-                    exporterName: "$_id",
+                    _id: 0, // Exclude _id
+                    exporterName: "$_id", // Rename _id to exporterName
                     count: 1
                 }
             }
         ]);
 
         const topCountries = await ExportData.aggregate([
-            // Group by countryOfDestination and count occurrences
             {
                 $group: {
                     _id: "$countryOfDestination",
                     count: { $sum: 1 }
                 }
             },
-            // Sort by count in descending order
             {
                 $sort: { count: -1 }
             },
-            // Limit to top 5 countries
             {
                 $limit: 5
             },
-            // Reformat the output
             {
                 $project: {
-                    countryOfDestination: "$_id",
+                    _id: 0, // Exclude _id
+                    countryOfDestination: "$_id", // Rename _id to countryOfDestination
                     count: 1
                 }
             }
         ]);
 
         const topPorts = await ExportData.aggregate([
-            // Group by portOfDischarge and count occurrences
             {
                 $group: {
                     _id: "$portOfDischarge",
                     count: { $sum: 1 }
                 }
             },
-            // Sort by count in descending order
             {
                 $sort: { count: -1 }
             },
-            // Limit to top 5 ports
             {
                 $limit: 5
             },
-            // Reformat the output
             {
                 $project: {
-                    portOfDischarge: "$_id",
+                    _id: 0, // Exclude _id
+                    portOfDischarge: "$_id", // Rename _id to portOfDischarge
                     count: 1
                 }
             }
         ]);
 
-        // Combine the results into the desired format
         const topData = {
             topExporters,
             topCountries,
             topPorts
         };
 
-        // Send the aggregated data as the response
         res.status(200).json(topData);
 
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
+
 
 
 exportRouter.post("/api/exports", async (req, res) => {
