@@ -56,7 +56,7 @@ issueRouter.get('/api/issue', auth, async (req, res) => {
             ...issue._doc,
             images: issue.images.map(image => ({
                 ...image,
-                data: image.data.toString('base64') // Convert image data to base64
+                data: image.data.toString('base64') 
             }))
         }));
         res.status(200).send(formattedIssues);
@@ -78,7 +78,7 @@ issueRouter.get('/api/issue/:id', auth, async (req, res) => {
             ...issue._doc,
             images: issue.images.map(image => ({
                 ...image,
-                data: image.data.toString('base64') // Convert image data to base64
+                data: image.data.toString('base64') 
             }))
         };
 

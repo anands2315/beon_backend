@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require("cors");
+const compression = require('compression'); // Import compression
 
 // IMPORTS FROM OTHER FILES
 const exportRouter = require('./routes/exports.js');
@@ -14,9 +15,7 @@ const shipmentHSNRouter = require('./routes/shipmentHSN.js');
 const shipmentNameRouter = require('./routes/shipmentName.js');
 const aggregationRouter = require('./routes/aggregate.js');
 const issueRouter = require('./routes/issue.js');
-const shipmentItemRouter = require('./routes/shipmentItem.js');
 const recentSearchRouter = require('./routes/recentSearch.js');
-
 
 // INITIALIZE
 const PORT = 3000;
@@ -24,10 +23,12 @@ const app = express();
 const DB = "mongodb://benodb:benoadmin1313@3.7.3.84:27017/?authSource=test";
 // const DB = "mongodb+srv://anandsinghfuerte:beon123@cluster0.zue4qwl.mongodb.net/mydatabase?retryWrites=true&w=majority&appName=Cluster0";
 
-
 // MIDDLEWARE
 app.use(cors());
 app.use(express.json());
+app.use(compression()); 
+
+// ROUTES
 app.use(exportRouter);
 app.use(exportTestRouter);
 app.use(favoriteRouter);
@@ -38,7 +39,6 @@ app.use(shipmentPODRouter);
 app.use(shipmentHSNRouter);
 app.use(shipmentNameRouter);
 app.use(issueRouter);
-app.use(shipmentItemRouter);
 app.use(recentSearchRouter);
 app.use(aggregationRouter);
 
