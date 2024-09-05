@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 
+// Section schema definition
 const sectionSchema = new mongoose.Schema({
     sectionTitle: {
         type: String,
@@ -17,6 +18,7 @@ const sectionSchema = new mongoose.Schema({
     _id: false, // Prevents Mongoose from creating an _id for each section
 });
 
+// Blog schema definition
 const blogSchema = new mongoose.Schema({
     title: {
         type: String,
@@ -31,16 +33,22 @@ const blogSchema = new mongoose.Schema({
         contentType: String,
     },
     sections: [sectionSchema], // Array of section schemas
+    isLiked: {
+        type: Boolean,
+        default: false, // Default value is false
+    }
 }, {
     timestamps: { createdAt: true, updatedAt: false },
 });
 
+// Virtual for the main image path
 blogSchema.virtual('mainImagePath').get(function () {
     return this.mainImage
         ? `data:${this.mainImage.contentType};base64,${this.mainImage.data.toString('base64')}`
         : null;
 });
 
+// Creating the Blog model
 const Blog = mongoose.model('Blog', blogSchema);
 
 module.exports = Blog;

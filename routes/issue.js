@@ -51,12 +51,12 @@ issueRouter.post('/api/issue', auth, upload.array('images'), async (req, res) =>
 // Get all issues
 issueRouter.get('/api/issue', auth, async (req, res) => {
     try {
-        const issues = await Issue.find();
+        const issues = await Issue.find().lean();
         const formattedIssues = issues.map(issue => ({
-            ...issue._doc,
+            ...issue,
             images: issue.images.map(image => ({
                 ...image,
-                data: image.data.toString('base64') 
+                data: image.data.toString('base64')
             }))
         }));
         res.status(200).send(formattedIssues);
@@ -65,20 +65,21 @@ issueRouter.get('/api/issue', auth, async (req, res) => {
     }
 });
 
+
 // Get a single issue by ID
 issueRouter.get('/api/issue/:id', auth, async (req, res) => {
     try {
-        const issue = await Issue.findById(req.params.id);
+        const issue = await Issue.findById(req.params.id).lean();
 
         if (!issue) {
             return res.status(404).send({ error: 'Issue not found' });
         }
 
         const formattedIssue = {
-            ...issue._doc,
+            ...issue._doc, 
             images: issue.images.map(image => ({
                 ...image,
-                data: image.data.toString('base64') 
+                data: image.data.toString('base64')
             }))
         };
 
@@ -93,42 +94,42 @@ issueRouter.patch('/api/issue/:id', auth, upload.array('images'), async (req, re
     const updates = Object.keys(req.body);
     const allowedUpdates = ['name', 'issue', 'resolved', 'comment'];
     const isValidOperation = updates.every((update) => allowedUpdates.includes(update));
-    
+
     if (!isValidOperation) {
-      return res.status(400).send({ error: 'Invalid updates!' });
+        return res.status(400).send({ error: 'Invalid updates!' });
     }
-    
+
     try {
-      const issue = await Issue.findById(req.params.id);
-      
-      if (!issue) {
-        return res.status(404).send({ error: 'Issue not found' });
-      }
-      
-      // Apply text updates
-      updates.forEach((update) => {
-        if (update !== 'images') {
-          issue[update] = req.body[update];
+        const issue = await Issue.findById(req.params.id);
+
+        if (!issue) {
+            return res.status(404).send({ error: 'Issue not found' });
         }
-      });
-      
-      // Handle image updates
-      if (req.files && req.files.length > 0) {
-        // Replace the existing images with the new ones
-        issue.images = req.files.map(file => ({
-          data: file.buffer,
-          contentType: file.mimetype
-        }));
-      }
-      
-      await issue.save();
-      res.status(200).send(issue);
+
+        // Apply text updates
+        updates.forEach((update) => {
+            if (update !== 'images') {
+                issue[update] = req.body[update];
+            }
+        });
+
+        // Handle image updates
+        if (req.files && req.files.length > 0) {
+            // Replace the existing images with the new ones
+            issue.images = req.files.map(file => ({
+                data: file.buffer,
+                contentType: file.mimetype
+            }));
+        }
+
+        await issue.save();
+        res.status(200).send(issue);
     } catch (error) {
-      res.status(500).send({ error: 'Internal Server Error' });
+        res.status(500).send({ error: 'Internal Server Error' });
     }
-  });
-  
-  
+});
+
+
 
 
 // Delete an issue by ID

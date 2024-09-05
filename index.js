@@ -27,7 +27,12 @@ const DB = "mongodb+srv://anandsinghfuerte:beon123@cluster0.zue4qwl.mongodb.net/
 // MIDDLEWARE
 app.use(cors());
 app.use(express.json());
-app.use(compression());
+app.use(compression({
+    level: 6,
+    threshold: 1024,
+    filter: (req, res) => !req.headers['x-no-compression']
+}));
+
 
 // ROUTES
 app.use(exportRouter);

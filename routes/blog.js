@@ -13,7 +13,7 @@ blogRouter.post('/api/blog', auth, upload.fields([
     { name: 'sectionImages', maxCount: 10 }
 ]), async (req, res) => {
     try {
-        const { title, description, sections } = req.body;
+        const { title, description, sections, isLiked } = req.body;
         const mainImage = req.files['mainImage'] ? {
             data: req.files['mainImage'][0].buffer,
             contentType: req.files['mainImage'][0].mimetype
@@ -39,7 +39,8 @@ blogRouter.post('/api/blog', auth, upload.fields([
             title,
             description,
             mainImage,
-            sections: formattedSections
+            sections: formattedSections,
+            isLiked: isLiked || false // Set default to false if not provided
         });
 
         await newBlog.save();
@@ -51,10 +52,13 @@ blogRouter.post('/api/blog', auth, upload.fields([
 });
 
 
-// Get all blogs
+// Get all blogs, latest first
 blogRouter.get('/api/blog', async (req, res) => {
     try {
-        const blogs = await Blog.find();
+        const titleQuery = req.query.title ? req.query.title : '';
+        const titleRegex = new RegExp(titleQuery, 'i');
+
+        const blogs = await Blog.find({ title: titleRegex }).sort({ createdAt: -1 });
         const formattedBlogs = blogs.map(blog => ({
             ...blog._doc,
             mainImage: blog.mainImage ? `data:${blog.mainImage.contentType};base64,${blog.mainImage.data.toString('base64')}` : null,
@@ -97,14 +101,13 @@ blogRouter.get('/api/blog/:id', auth, async (req, res) => {
     }
 });
 
-
 // Update a blog by ID
 blogRouter.patch('/api/blog/:id', auth, upload.fields([
     { name: 'mainImage', maxCount: 1 },
     { name: 'sectionImages', maxCount: 10 }
 ]), async (req, res) => {
     const updates = Object.keys(req.body);
-    const allowedUpdates = ['title', 'description', 'sections'];
+    const allowedUpdates = ['title', 'description', 'sections', 'isLiked'];
     const isValidOperation = updates.every(update => allowedUpdates.includes(update));
 
     if (!isValidOperation) {
@@ -118,7 +121,23 @@ blogRouter.patch('/api/blog/:id', auth, upload.fields([
             return res.status(404).send({ error: 'Blog not found' });
         }
 
-        updates.forEach(update => blog[update] = req.body[update]);
+        updates.forEach(update => {
+            if (update === 'sections') {
+                const sectionImages = req.files['sectionImages'] || [];
+                const sections = JSON.parse(req.body.sections).map((section, index) => ({
+                    sectionTitle: section.sectionTitle,
+                    sectionDescription: section.sectionDescription,
+                    sectionImage: sectionImages[index] ? {
+                        data: sectionImages[index].buffer,
+                        contentType: sectionImages[index].mimetype
+                    } : blog.sections[index].sectionImage // Retain existing image if not updated
+                }));
+
+                blog.sections = sections;
+            } else {
+                blog[update] = req.body[update];
+            }
+        });
 
         if (req.files['mainImage']) {
             blog.mainImage = {
@@ -127,33 +146,13 @@ blogRouter.patch('/api/blog/:id', auth, upload.fields([
             };
         }
 
-        if (req.files['sectionImages']) {
-            const sectionImages = req.files['sectionImages'];
-            const sections = JSON.parse(req.body.sections).map((section, index) => ({
-                sectionTitle: section.sectionTitle,
-                sectionDescription: section.sectionDescription,
-                sectionImage: sectionImages[index] ? {
-                    data: sectionImages[index].buffer,
-                    contentType: sectionImages[index].mimetype
-                } : blog.sections[index].sectionImage // Retain existing image if not updated
-            }));
-
-            blog.sections = sections;
-        } else {
-            // Handle case when no sectionImages are provided
-            blog.sections = JSON.parse(req.body.sections).map((section, index) => ({
-                sectionTitle: section.sectionTitle,
-                sectionDescription: section.sectionDescription,
-                sectionImage: blog.sections[index] ? blog.sections[index].sectionImage : null
-            }));
-        }
-
         await blog.save();
         res.status(200).send(blog);
     } catch (error) {
         res.status(500).send({ error: 'Internal Server Error' });
     }
 });
+
 
 
 // Delete a blog by ID

@@ -1,10 +1,12 @@
 const express = require('express');
 const ExportData = require('../models/exports');
-const ShipmentPOD = require('../models/shipmentPOD');
+const NodeCache = require('node-cache');
 const TopSchema = require('../models/topExporters');
 const chaptercodedatas = require('../models/chapterCode');
 const auth = require('../middleware/auth');
 const exportRouter = express.Router();
+
+const cache = new NodeCache({ stdTTL: 600 });
 
 
 exportRouter.get('/top-data', async (req, res) => {
@@ -89,7 +91,6 @@ exportRouter.get('/top-data', async (req, res) => {
 });
 
 
-
 exportRouter.post("/api/exports", async (req, res) => {
 
     console.log(req.body);
@@ -123,7 +124,7 @@ exportRouter.post('/api/topExporter', async (req, res) => {
 
 exportRouter.get('/api/topExporter', async (req, res) => {
     try {
-        const data = await TopSchema.findOne(); // Retrieve the first document in the collection
+        const data = await TopSchema.findOne().lean(); // Retrieve the first document in the collection
         if (!data) {
             return res.status(404).json({ message: 'Data not found' });
         }
@@ -273,7 +274,7 @@ exportRouter.get('/api/chapter-code-data/:chapterCode', auth, async (req, res) =
         const { chapterCode } = req.params;
 
         // Fetch data for the specified chapterCode
-        const data = await chaptercodedatas.findOne({ chapterCode });
+        const data = await chaptercodedatas.findOne({ chapterCode }) ;
 
         if (!data) {
             return res.status(404).json({ message: 'Data not found for the specified chapter code.' });
@@ -312,17 +313,26 @@ exportRouter.get("/api/exports/search", auth, async (req, res) => {
             return res.status(400).json({ error: "Query parameter 'value' is required" });
         }
 
+        // Generate a cache key based on the query parameters
+        const cacheKey = JSON.stringify({ field, value, secondaryField, secondaryValue, page, limit });
+
+        // Check if the response is in the cache
+        const cachedData = cache.get(cacheKey);
+        if (cachedData) {
+            return res.json(cachedData);
+        }
+
         // Build the query
         let query = {};
         if (field) {
-            if (field === "ritcCode" || field === "sbNo" || field === "quantity" || field === "itemRate" || field === "fob") {
+            if (["ritcCode", "sbNo", "quantity", "itemRate", "fob"].includes(field)) {
                 const numericValue = Number(value);
                 if (isNaN(numericValue)) {
                     return res.status(400).json({ error: `Invalid ${field} parameter` });
                 }
                 query[field] = numericValue;
             } else if (field === "sbDate") {
-                query[field] = value;  // Assuming sbDate is in a proper format
+                query[field] = value;
             } else {
                 query[field] = { $regex: value, $options: "i" };
             }
@@ -337,7 +347,7 @@ exportRouter.get("/api/exports/search", auth, async (req, res) => {
                     { itemDesc: regexQuery },
                     { countryOfDestination: regexQuery },
                     { iec: regexQuery },
-                    { sbDate: value },  // Assuming exact match
+                    { sbDate: value },
                     { sbNo: Number(value) || { $exists: true } },
                     { quantity: Number(value) || { $exists: true } },
                     { itemRate: Number(value) || { $exists: true } },
@@ -349,76 +359,36 @@ exportRouter.get("/api/exports/search", auth, async (req, res) => {
 
         // Apply secondary filter if provided
         if (secondaryField && secondaryValue) {
-            if (secondaryField === "ritcCode" || secondaryField === "sbNo" || secondaryField === "quantity" || secondaryField === "itemRate" || secondaryField === "fob") {
+            if (["ritcCode", "sbNo", "quantity", "itemRate", "fob"].includes(secondaryField)) {
                 const numericValue = Number(secondaryValue);
                 if (!isNaN(numericValue)) {
                     query[secondaryField] = numericValue;
                 }
             } else if (secondaryField === "sbDate") {
-                query[secondaryField] = secondaryValue;  // Assuming sbDate is in a proper format
+                query[secondaryField] = secondaryValue;
             } else {
                 query[secondaryField] = { $regex: secondaryValue, $options: "i" };
             }
         }
 
-        // Find the total count of matching documents
-        const totalCount = await ExportData.countDocuments(query);
-
-        // Find data with pagination
+        // Find data with pagination, without counting total documents
         const paginatedResults = await ExportData.find(query)
             .sort({ sbDate: -1 })
             .skip(skip)
             .limit(Number(limit))
+            .lean()
             .exec();
-        console.log(totalCount);
-        // Send response with total count and paginated results
+
+        // Cache the response
+        cache.set(cacheKey, paginatedResults);
+
+        // Send the response
         res.json(paginatedResults);
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
 
-
-
-
-
-
-// exportRouter.get("/api/exports/search", async (req, res) => {
-//     try {
-//         const searchQuery = req.query.q;
-//         if (!searchQuery) {
-//             return res.status(400).json({ error: "Query parameter 'q' is required" });
-//         }
-
-//         const regexQuery = { $regex: searchQuery, $options: "i" };
-
-//         // Determine if the search query can be converted to a number
-//         const ritcCode = !isNaN(searchQuery) ? Number(searchQuery) : null;
-
-//         // Build the $or array dynamically
-//         const orQuery = [
-//             { exporterName: regexQuery },
-//             { countryOfDestination: regexQuery },
-//             { itemDesc: regexQuery },
-//             { portOfDischarge: regexQuery },
-//             { currency: regexQuery },
-//         ];
-
-//         // Add ritcCode query only if it's a valid number
-//         if (ritcCode !== null) {
-//             orQuery.push({ ritcCode: ritcCode });
-//         }
-
-//         const exportData = await ExportData.find({
-//             $or: orQuery
-//         }).sort({ sbDate: -1 });
-
-//         res.json(exportData);
-//     } catch (e) {
-//         console.error(e.message);
-//         res.status(500).json({ error: "Internal server error" });
-//     }
-// });
 
 exportRouter.get("/api/exports/search-page", auth, async (req, res) => {
     try {
