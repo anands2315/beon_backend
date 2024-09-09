@@ -35,7 +35,7 @@ shipmentPODRouter.post('/api/shipmentPOD', auth, (req, res) => {
 
 // GET endpoint to retrieve all shipment data
 shipmentPODRouter.get('/api/shipmentPOD', auth, (req, res) => {
-    ShipmentPOD.find({})
+    ShipmentPOD.find({}).lean()
         .then(docs => {
             res.status(200).send(docs);
         })
@@ -48,7 +48,7 @@ shipmentPODRouter.get('/api/shipmentPOD', auth, (req, res) => {
 shipmentPODRouter.get('/api/shipmentPOD/:pod', auth, (req, res) => {
     const pod = req.params.pod;
 
-    ShipmentPOD.find({ pod })
+    ShipmentPOD.find({ pod }).lean()
         .then(docs => {
             res.status(200).send(docs);
         })

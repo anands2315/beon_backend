@@ -4,10 +4,10 @@ const ShipmentHSN = require('../models/shipmentHSN'); // Ensure the path is corr
 const auth = require('../middleware/auth');
 
 // Get all ShipmentHSN data
-shipmentHSNRouter.get('/api/shipmenthsn', auth,async (req, res) => {
+shipmentHSNRouter.get('/api/shipmenthsn', auth, async (req, res) => {
 
     try {
-        const shipmentHSNs = await ShipmentHSN.find();
+        const shipmentHSNs = await ShipmentHSN.find().lean();
         res.json(shipmentHSNs);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -15,9 +15,9 @@ shipmentHSNRouter.get('/api/shipmenthsn', auth,async (req, res) => {
 });
 
 
-shipmentHSNRouter.get('/api/shipmenthsn/:ritcCode', auth,async (req, res) => {
+shipmentHSNRouter.get('/api/shipmenthsn/:ritcCode', auth, async (req, res) => {
     try {
-        const shipmentHSN = await ShipmentHSN.find({ ritcCode: req.params.ritcCode });
+        const shipmentHSN = await ShipmentHSN.find({ ritcCode: req.params.ritcCode }).lean();
         if (!shipmentHSN) return res.status(404).json({ error: 'ShipmentHSN not found' });
         res.json(shipmentHSN);
     } catch (err) {
@@ -26,7 +26,7 @@ shipmentHSNRouter.get('/api/shipmenthsn/:ritcCode', auth,async (req, res) => {
 });
 
 // Create a new ShipmentHSN entry
-shipmentHSNRouter.post('/api/shipmenthsn', auth,async (req, res) => {
+shipmentHSNRouter.post('/api/shipmenthsn', auth, async (req, res) => {
     try {
         const newShipmentHSN = new ShipmentHSN(req.body);
         await newShipmentHSN.save();
@@ -37,7 +37,7 @@ shipmentHSNRouter.post('/api/shipmenthsn', auth,async (req, res) => {
 });
 
 // Update an existing ShipmentHSN entry
-shipmentHSNRouter.put('/api/shipmenthsn/:id', auth,async (req, res) => {
+shipmentHSNRouter.put('/api/shipmenthsn/:id', auth, async (req, res) => {
     try {
         const updatedShipmentHSN = await ShipmentHSN.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
         if (!updatedShipmentHSN) return res.status(404).json({ error: 'ShipmentHSN not found' });
@@ -48,7 +48,7 @@ shipmentHSNRouter.put('/api/shipmenthsn/:id', auth,async (req, res) => {
 });
 
 // Delete a ShipmentHSN entry
-shipmentHSNRouter.delete('/api/shipmenthsn/:id', auth,async (req, res) => {
+shipmentHSNRouter.delete('/api/shipmenthsn/:id', auth, async (req, res) => {
     try {
         const deletedShipmentHSN = await ShipmentHSN.findByIdAndDelete(req.params.id);
         if (!deletedShipmentHSN) return res.status(404).json({ error: 'ShipmentHSN not found' });

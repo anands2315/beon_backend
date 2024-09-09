@@ -4,7 +4,7 @@ const auth = require("../middleware/auth");
 const shipmentRouter = express.Router();
 
 // Route to create or update shipment data
-shipmentRouter.post('/api/shipments', auth,async (req, res) => {
+shipmentRouter.post('/api/shipments', auth, async (req, res) => {
     const { country, monthWiseShipments, fetchedData, topExportPODs, chapterCodeCounts } = req.body;
 
     try {
@@ -31,7 +31,7 @@ shipmentRouter.post('/api/shipments', auth,async (req, res) => {
 });
 
 // Route to get all shipment data
-shipmentRouter.get('/api/shipments', auth,async (req, res) => {
+shipmentRouter.get('/api/shipments', auth, async (req, res) => {
     try {
         const shipments = await Shipment.find({});
         res.status(200).send(shipments);
@@ -41,7 +41,7 @@ shipmentRouter.get('/api/shipments', auth,async (req, res) => {
 });
 
 // Route to get shipment data for a specific country
-shipmentRouter.get('/api/shipments/:country', auth,async (req, res) => {
+shipmentRouter.get('/api/shipments/:country', auth, async (req, res) => {
     const country = req.params.country;
 
     try {

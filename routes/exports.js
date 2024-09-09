@@ -11,84 +11,37 @@ const cache = new NodeCache({ stdTTL: 600 });
 
 exportRouter.get('/top-data', async (req, res) => {
     try {
-        const topExporters = await ExportData.aggregate([
-            {
-                $group: {
-                    _id: "$exporterName",
-                    count: { $sum: 1 }
-                }
-            },
-            {
-                $sort: { count: -1 }
-            },
-            {
-                $limit: 5
-            },
-            {
-                $project: {
-                    _id: 0, // Exclude _id
-                    exporterName: "$_id", // Rename _id to exporterName
-                    count: 1
-                }
-            }
+        // Run all three queries in parallel
+        const [topExporters, topCountries, topPorts] = await Promise.all([
+            ExportData.aggregate([
+                { $group: { _id: "$exporterName", count: { $sum: 1 } } },
+                { $sort: { count: -1 } },
+                { $limit: 5 },  // Limit early to reduce documents
+                { $project: { _id: 0, exporterName: "$_id", count: 1 } }
+            ]),
+            ExportData.aggregate([
+                { $group: { _id: "$countryOfDestination", count: { $sum: 1 } } },
+                { $sort: { count: -1 } },
+                { $limit: 5 },
+                { $project: { _id: 0, countryOfDestination: "$_id", count: 1 } }
+            ]),
+            ExportData.aggregate([
+                { $group: { _id: "$portOfDischarge", count: { $sum: 1 } } },
+                { $sort: { count: -1 } },
+                { $limit: 5 },
+                { $project: { _id: 0, portOfDischarge: "$_id", count: 1 } }
+            ])
         ]);
 
-        const topCountries = await ExportData.aggregate([
-            {
-                $group: {
-                    _id: "$countryOfDestination",
-                    count: { $sum: 1 }
-                }
-            },
-            {
-                $sort: { count: -1 }
-            },
-            {
-                $limit: 5
-            },
-            {
-                $project: {
-                    _id: 0, // Exclude _id
-                    countryOfDestination: "$_id", // Rename _id to countryOfDestination
-                    count: 1
-                }
-            }
-        ]);
-
-        const topPorts = await ExportData.aggregate([
-            {
-                $group: {
-                    _id: "$portOfDischarge",
-                    count: { $sum: 1 }
-                }
-            },
-            {
-                $sort: { count: -1 }
-            },
-            {
-                $limit: 5
-            },
-            {
-                $project: {
-                    _id: 0, // Exclude _id
-                    portOfDischarge: "$_id", // Rename _id to portOfDischarge
-                    count: 1
-                }
-            }
-        ]);
-
-        const topData = {
-            topExporters,
-            topCountries,
-            topPorts
-        };
-
-        res.status(200).json(topData);
+        // Combine the results and send as JSON response
+        res.status(200).json({ topExporters, topCountries, topPorts });
 
     } catch (err) {
+        // Handle any errors that occur during the request
         res.status(500).json({ error: err.message });
     }
 });
+
 
 
 exportRouter.post("/api/exports", async (req, res) => {
@@ -171,44 +124,6 @@ exportRouter.get('/api/unique-values', async (req, res) => {
     }
 });
 
-
-
-exportRouter.get('/api/unique-pods-not-in-shipment', async (req, res) => {
-    try {
-        const uniquePODS = await ExportData.aggregate([
-            {
-                $group: {
-                    _id: "$portOfDischarge"
-                }
-            },
-            {
-                $lookup: {
-                    from: "shipmentpods", // The name of the collection containing ShipmentPOD documents
-                    localField: "_id",
-                    foreignField: "pod", // Adjust this field according to the actual field name in ShipmentPOD collection
-                    as: "shipmentPodMatch"
-                }
-            },
-            {
-                $match: {
-                    "shipmentPodMatch": { $size: 0 }
-                }
-            },
-            {
-                $project: {
-                    _id: 0,
-                    portOfDischarge: "$_id"
-                }
-            }
-        ]);
-
-        res.status(200).json(uniquePODS);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server Error' });
-    }
-});
-
 exportRouter.post('/api/aggregate-chapter-code-data', auth, async (req, res) => {
     try {
         await ExportData.aggregate([
@@ -274,7 +189,7 @@ exportRouter.get('/api/chapter-code-data/:chapterCode', auth, async (req, res) =
         const { chapterCode } = req.params;
 
         // Fetch data for the specified chapterCode
-        const data = await chaptercodedatas.findOne({ chapterCode }) ;
+        const data = await chaptercodedatas.findOne({ chapterCode });
 
         if (!data) {
             return res.status(404).json({ message: 'Data not found for the specified chapter code.' });
