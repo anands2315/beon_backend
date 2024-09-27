@@ -4,7 +4,7 @@ const auth = require('../middleware/auth');
 const faqRouter = express.Router();
 
 // GET all FAQs
-faqRouter.get('/api/faq',auth, async (req, res) => {
+faqRouter.get('/api/faq', async (req, res) => {
     try {
         const faqs = await FAQ.find();
         res.json(faqs);
